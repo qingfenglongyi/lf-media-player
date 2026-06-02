@@ -48,7 +48,7 @@ object LrcParser {
             Log.e(TAG, "Failed to parse lrc file: ${file.absolutePath}", e)
             try {
                 // 尝试 GBK 编码
-                val content = file.readBytes().toString(Charsets.GBK)
+                val content = file.readBytes().toString(Charset.forName("GBK"))
                 Lyrics.parse(content)
             } catch (e2: Exception) {
                 Log.e(TAG, "Failed to parse lrc with GBK: ${file.absolutePath}", e2)

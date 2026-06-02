@@ -110,7 +110,7 @@ fun VinylView(
                     Text(
                         text = song.title.take(6),
                         color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 10.dp.value.sp,
+                        fontSize = 10.sp,
                         maxLines = 1
                     )
                 }

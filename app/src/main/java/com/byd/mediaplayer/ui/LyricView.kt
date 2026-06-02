@@ -1,6 +1,7 @@
 package com.byd.mediaplayer.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -73,13 +74,3 @@ fun LyricView(
     }
 }
 
-private fun Modifier.clickable(onClick: () -> Unit): Modifier =
-    this.then(
-        Modifier.clickable(
-            indication = null,
-            interactionSource = androidx.compose.foundation.interaction.MutableInteractionSource()
-        ) { onClick() }
-    )
-
-private val Int.sp: androidx.compose.ui.unit.TextUnit
-    get() = androidx.compose.ui.unit.TextUnit(this.toFloat(), androidx.compose.ui.unit.TextUnitType.Sp)
