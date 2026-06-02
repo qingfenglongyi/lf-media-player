@@ -4,9 +4,11 @@
     android:height="48dp"
     android:viewportWidth="48"
     android:viewportHeight="48">
+    <!-- Background circle -->
     <path
         android:fillColor="#1A1A2E"
-        android:pathData="M0,0h48v48h-48z"/>
+        android:pathData="M24,24m-24,0a24,24 0,1 1,48 0a24,24 0,1 1,-48 0"/>
+    <!-- Music note icon -->
     <path
         android:fillColor="#00D4AA"
         android:pathData="M24,12 L24,30 C24,30 21,28 19,30 C17,32 17,36 19,38 C21,40 24,38 24,36 L24,20 L32,18 L32,28 C32,28 29,26 27,28 C25,30 25,34 27,36 C29,38 32,36 32,34 L32,12 L24,12 Z"/>
