@@ -74,7 +74,6 @@ fun PlaylistPanel(
     selectedPlaylistName: String? = null,
     onBackFromPlaylist: (() -> Unit)? = null,
     getPlaylistSongs: ((String) -> List<Song>)? = null,
-    viewState: LibraryViewState = LibraryViewState.SONGS,
     modifier: Modifier = Modifier
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -83,6 +82,7 @@ fun PlaylistPanel(
     var playlistToDelete by remember { mutableStateOf<String?>(null) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var songToAdd by remember { mutableStateOf<Song?>(null) }
+    var viewState by remember { mutableStateOf(LibraryViewState.SONGS) }
 
     AnimatedVisibility(
         visible = visible,

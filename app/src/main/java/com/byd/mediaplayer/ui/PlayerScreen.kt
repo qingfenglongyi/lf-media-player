@@ -69,7 +69,6 @@ fun PlayerScreen(
     selectedPlaylistName: String? = null,
     onBackFromPlaylist: (() -> Unit)? = null,
     getPlaylistSongs: ((String) -> List<Song>)? = null,
-    viewState: LibraryViewState = LibraryViewState.SONGS,
     modifier: Modifier = Modifier
 ) {
     var centerView by remember { mutableStateOf(CenterView.VINYL) }
@@ -219,8 +218,7 @@ fun PlayerScreen(
             onPlaylistClick = onPlaylistClick,
             selectedPlaylistName = selectedPlaylistName,
             onBackFromPlaylist = onBackFromPlaylist,
-            getPlaylistSongs = getPlaylistSongs,
-            viewState = viewState
+            getPlaylistSongs = getPlaylistSongs
         )
     }
 }

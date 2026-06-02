@@ -379,8 +379,7 @@ class MainActivity : ComponentActivity() {
                 selectedPlaylistSongs = emptyList()
                 libraryViewState = LibraryViewState.SONGS
             },
-            getPlaylistSongs = { name -> selectedPlaylistSongs },
-            viewState = libraryViewState
+            getPlaylistSongs = { name -> selectedPlaylistSongs }
         )
     }
 }
