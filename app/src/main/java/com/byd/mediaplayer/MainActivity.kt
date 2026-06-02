@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -18,15 +19,24 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.byd.mediaplayer.data.MusicRepository
+import com.byd.mediaplayer.data.database.AppDatabase
+import com.byd.mediaplayer.model.Lyrics
+import com.byd.mediaplayer.model.PlayMode
 import com.byd.mediaplayer.model.Song
 import com.byd.mediaplayer.player.PlayerService
+import com.byd.mediaplayer.ui.PlaylistTab
 import com.byd.mediaplayer.ui.PlayerScreen
+import com.byd.mediaplayer.util.LrcParser
+import com.byd.mediaplayer.util.PreferencesManager
 import kotlinx.coroutines.*
 
 class MainActivity : ComponentActivity() {
 
     private var playerService: PlayerService? = null
     private var serviceBound = false
+    private lateinit var preferencesManager: PreferencesManager
+    private lateinit var audioManager: AudioManager
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -54,6 +64,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        preferencesManager = PreferencesManager(this)
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
         setContent {
             MaterialTheme {
                 Surface(
@@ -78,6 +91,14 @@ class MainActivity : ComponentActivity() {
         if (serviceBound) {
             unbindService(serviceConnection)
             serviceBound = false
+        }
+        // 保存播放状态
+        playerService?.getPlayerManager()?.let { manager ->
+            preferencesManager.lastPlayedPosition = manager.currentPosition
+            preferencesManager.lastPlayMode = manager.playMode.name
+            manager.currentSong?.let {
+                preferencesManager.lastPlayedSongId = it.id
+            }
         }
     }
 
@@ -113,12 +134,27 @@ class MainActivity : ComponentActivity() {
         service.startForegroundService()
 
         val playerManager = service.getPlayerManager()
-        val repository = com.byd.mediaplayer.data.MusicRepository.getInstance(this)
+        val repository = MusicRepository.getInstance(this)
 
         CoroutineScope(Dispatchers.Main).launch {
             val songs = repository.getAllSongs()
             if (songs.isNotEmpty()) {
-                playerManager.setPlaylist(songs, 0)
+                // 恢复上次的播放状态
+                val lastSongId = preferencesManager.lastPlayedSongId
+                val startIndex = songs.indexOfFirst { it.id == lastSongId }.takeIf { it >= 0 } ?: 0
+                playerManager.setPlaylist(songs, startIndex)
+
+                // 恢复播放模式
+                val playMode = preferencesManager.lastPlayMode.let {
+                    try { PlayMode.valueOf(it) } catch (e: Exception) { PlayMode.LIST_LOOP }
+                }
+                playerManager.setPlayMode(playMode)
+
+                // 恢复播放位置
+                val lastPosition = preferencesManager.lastPlayedPosition
+                if (lastPosition > 0) {
+                    playerManager.seekTo(lastPosition)
+                }
             }
         }
     }
@@ -130,57 +166,54 @@ class MainActivity : ComponentActivity() {
         var playlist by remember { mutableStateOf<List<Song>>(emptyList()) }
         var currentPosition by remember { mutableLongStateOf(0L) }
         var duration by remember { mutableLongStateOf(0L) }
-
-        val scope = CoroutineScope(Dispatchers.Main)
-        var updateJob by remember { mutableStateOf<Job?>(null) }
+        var playMode by remember { mutableStateOf(PlayMode.LIST_LOOP) }
+        var lyrics by remember { mutableStateOf<Lyrics?>(null) }
+        var volume by remember { mutableFloatStateOf(1.0f) }
+        var showPlaylistPanel by remember { mutableStateOf(false) }
+        var playlistTab by remember { mutableStateOf(PlaylistTab.PLAYING) }
 
         LaunchedEffect(playerService) {
             while (playerService == null) {
                 delay(100)
             }
             val service = playerService ?: return@LaunchedEffect
-            val playerManager = service.getPlayerManager()
+            val manager = service.getPlayerManager()
 
             // 加载歌曲
-            val repository = com.byd.mediaplayer.data.MusicRepository.getInstance(this@MainActivity)
+            val repository = MusicRepository.getInstance(this@MainActivity)
             playlist = repository.getAllSongs()
 
             if (playlist.isNotEmpty()) {
-                playerManager.setPlaylist(playlist, 0)
+                val startIndex = preferencesManager.lastPlayedSongId.let { lastId ->
+                    playlist.indexOfFirst { it.id == lastId }.takeIf { it >= 0 } ?: 0
+                }
+                manager.setPlaylist(playlist, startIndex)
             }
+
+            // 音量
+            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            val currentVolume = preferencesManager.lastVolume
+            volume = currentVolume * maxVolume
 
             // 更新播放状态
             launch {
                 while (true) {
-                    currentSong = playerManager.currentSong
-                    isPlaying = playerManager.isPlaying
-                    currentPosition = playerManager.currentPosition
-                    duration = playerManager.duration
-                    playlist = playerManager.playlist
+                    currentSong = manager.currentSong
+                    isPlaying = manager.isPlaying
+                    currentPosition = manager.currentPosition
+                    duration = manager.duration
+                    playMode = manager.playMode
+                    playlist = manager.playlist
+
+                    // 加载歌词
+                    currentSong?.let { song ->
+                        if (lyrics == null || lyrics?.lines.isNullOrEmpty()) {
+                            lyrics = LrcParser.parseLrc(song.path)
+                        }
+                    }
+
                     delay(500)
                 }
-            }
-        }
-
-        val onPlayPause: () -> Unit = {
-            playerService?.getPlayerManager()?.playPause()
-        }
-
-        val onNext: () -> Unit = {
-            playerService?.getPlayerManager()?.playNext()
-        }
-
-        val onPrevious: () -> Unit = {
-            playerService?.getPlayerManager()?.playPrevious()
-        }
-
-        val onSeek: (Long) -> Unit = { position ->
-            playerService?.getPlayerManager()?.seekTo(position)
-        }
-
-        val onSongClick: (Int) -> Unit = { index ->
-            playerService?.getPlayerManager()?.let { manager ->
-                manager.setPlaylist(playlist, index)
             }
         }
 
@@ -190,11 +223,32 @@ class MainActivity : ComponentActivity() {
             playlist = playlist,
             currentPosition = currentPosition,
             duration = duration,
-            onPlayPause = onPlayPause,
-            onNext = onNext,
-            onPrevious = onPrevious,
-            onSeek = onSeek,
-            onSongClick = onSongClick
+            playMode = playMode,
+            lyrics = lyrics,
+            volume = volume,
+            showPlaylistPanel = showPlaylistPanel,
+            playlistTab = playlistTab,
+            onPlayPause = { playerService?.getPlayerManager()?.playPause() },
+            onNext = { playerService?.getPlayerManager()?.playNext() },
+            onPrevious = { playerService?.getPlayerManager()?.playPrevious() },
+            onSeek = { playerService?.getPlayerManager()?.seekTo(it) },
+            onSongClick = { index ->
+                playerService?.getPlayerManager()?.let { manager ->
+                    manager.setPlaylist(playlist, index)
+                    lyrics = null // 清空歌词，下次自动加载
+                }
+            },
+            onPlayModeChange = { playerService?.getPlayerManager()?.cyclePlayMode() },
+            onVolumeChange = { newVolume ->
+                volume = newVolume
+                val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume.toInt(), 0)
+                preferencesManager.lastVolume = newVolume / maxVolume
+            },
+            onCenterViewToggle = { /* 在 PlayerScreen 内部处理 */ },
+            onPlaylistToggle = { showPlaylistPanel = !showPlaylistPanel },
+            onPlaylistTabChange = { playlistTab = it },
+            onPlaylistDismiss = { showPlaylistPanel = false }
         )
     }
 }

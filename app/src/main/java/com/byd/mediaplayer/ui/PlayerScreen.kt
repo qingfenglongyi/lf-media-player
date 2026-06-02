@@ -1,11 +1,13 @@
 package com.byd.mediaplayer.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,7 +18,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.byd.mediaplayer.model.Lyrics
+import com.byd.mediaplayer.model.PlayMode
 import com.byd.mediaplayer.model.Song
+
+enum class CenterView {
+    VINYL,  // 转盘
+    LYRIC   // 歌词
+}
 
 @Composable
 fun PlayerScreen(
@@ -25,54 +34,216 @@ fun PlayerScreen(
     playlist: List<Song>,
     currentPosition: Long,
     duration: Long,
+    playMode: PlayMode,
+    lyrics: Lyrics?,
+    volume: Float,
+    showPlaylistPanel: Boolean,
+    playlistTab: PlaylistTab,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onSeek: (Long) -> Unit,
-    onSongClick: (Int) -> Unit
+    onSongClick: (Int) -> Unit,
+    onPlayModeChange: () -> Unit,
+    onVolumeChange: (Float) -> Unit,
+    onCenterViewToggle: () -> Unit,
+    onPlaylistToggle: () -> Unit,
+    onPlaylistTabChange: (PlaylistTab) -> Unit,
+    onPlaylistDismiss: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = Modifier
+    var centerView by remember { mutableStateOf(CenterView.VINYL) }
+    var showVolumeSlider by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
             .fillMaxSize()
             .background(Color(0xFF1A1A2E))
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 歌曲信息
-        Spacer(modifier = Modifier.height(32.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // 顶部栏
+            TopBar(
+                playMode = playMode,
+                onPlayModeChange = onPlayModeChange,
+                onPlaylistToggle = onPlaylistToggle,
+                onVolumeClick = { showVolumeSlider = !showVolumeSlider }
+            )
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 中心视图切换区域
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                AnimatedContent(
+                    targetState = centerView,
+                    label = "centerView"
+                ) { view ->
+                    when (view) {
+                        CenterView.VINYL -> {
+                            VinylView(
+                                song = currentSong,
+                                isPlaying = isPlaying,
+                                onClick = { centerView = CenterView.LYRIC }
+                            )
+                        }
+                        CenterView.LYRIC -> {
+                            LyricView(
+                                lyrics = lyrics,
+                                currentTime = currentPosition,
+                                onClick = { centerView = CenterView.VINYL }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 歌曲信息
+            Text(
+                text = currentSong?.title ?: "未选择歌曲",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = currentSong?.artist ?: "比亚迪音乐播放器",
+                color = Color.Gray,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 进度条
+            ProgressBar(
+                currentPosition = currentPosition,
+                duration = duration,
+                onSeek = onSeek
+            )
+
+            // 播放控制按钮
+            PlaybackControls(
+                isPlaying = isPlaying,
+                onPlayPause = onPlayPause,
+                onNext = onNext,
+                onPrevious = onPrevious
+            )
+
+            // 当前播放列表预览
+            CurrentPlaylistPreview(
+                playlist = playlist,
+                currentSong = currentSong,
+                onSongClick = onSongClick
+            )
+        }
+
+        // 音量控制
+        if (showVolumeSlider) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable { showVolumeSlider = false },
+                contentAlignment = Alignment.Center
+            ) {
+                VolumeControl(
+                    currentVolume = volume,
+                    onVolumeChange = {
+                        onVolumeChange(it)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp)
+                        .clickable(enabled = false) {}
+                )
+            }
+        }
+
+        // 播放列表面板
+        PlaylistPanel(
+            visible = showPlaylistPanel,
+            currentPlaylist = playlist,
+            allSongs = playlist, // TODO: 实际从仓库获取
+            playlists = emptyList(), // TODO: 实际从数据库获取
+            currentTab = playlistTab,
+            currentSongIndex = playlist.indexOf(currentSong),
+            onTabChange = onPlaylistTabChange,
+            onSongClick = { index ->
+                onSongClick(index)
+                onPlaylistDismiss()
+            },
+            onDismiss = onPlaylistDismiss
+        )
+    }
+}
+
+@Composable
+private fun TopBar(
+    playMode: PlayMode,
+    onPlayModeChange: () -> Unit,
+    onPlaylistToggle: () -> Unit,
+    onVolumeClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 播放模式
         Text(
-            text = currentSong?.title ?: "未选择歌曲",
-            color = Color.White,
+            text = when (playMode) {
+                PlayMode.LIST_LOOP -> "🔁"
+                PlayMode.SINGLE_LOOP -> "🔂"
+                PlayMode.SHUFFLE -> "🔀"
+            },
             fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            modifier = Modifier.clickable(onClick = onPlayModeChange)
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Row {
+            Text(
+                text = "🔊",
+                fontSize = 24.sp,
+                modifier = Modifier.clickable(onClick = onVolumeClick)
+            )
+            Spacer(modifier = Modifier.width(24.dp))
+            Text(
+                text = "📋",
+                fontSize = 24.sp,
+                modifier = Modifier.clickable(onClick = onPlaylistToggle)
+            )
+        }
+    }
+}
 
-        Text(
-            text = currentSong?.artist ?: "比亚迪音乐播放器",
-            color = Color.Gray,
-            fontSize = 16.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+@Composable
+private fun ProgressBar(
+    currentPosition: Long,
+    duration: Long,
+    onSeek: (Long) -> Unit
+) {
+    var sliderPosition by remember(currentPosition) { mutableFloatStateOf(currentPosition.toFloat()) }
 
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // 进度条
-        var sliderPosition by remember(currentPosition) { mutableFloatStateOf(currentPosition.toFloat()) }
-
+    Column(modifier = Modifier.fillMaxWidth()) {
         Slider(
             value = sliderPosition,
             onValueChange = { sliderPosition = it },
             onValueChangeFinished = { onSeek(sliderPosition.toLong()) },
             valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
             colors = SliderDefaults.colors(
                 thumbColor = Color(0xFF00D4AA),
                 activeTrackColor = Color(0xFF00D4AA),
@@ -80,117 +251,94 @@ fun PlayerScreen(
             )
         )
 
-        // 时间显示
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = formatTime(currentPosition),
-                color = Color.Gray,
-                fontSize = 12.sp
-            )
-            Text(
-                text = formatTime(duration),
-                color = Color.Gray,
-                fontSize = 12.sp
-            )
+            Text(text = formatTime(currentPosition), color = Color.Gray, fontSize = 12.sp)
+            Text(text = formatTime(duration), color = Color.Gray, fontSize = 12.sp)
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(32.dp))
+@Composable
+private fun PlaybackControls(
+    isPlaying: Boolean,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("⏮", fontSize = 32.sp, color = Color.White, modifier = Modifier.clickable(onClick = onPrevious))
 
-        // 播放控制按钮
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF00D4AA))
+                .clickable(onClick = onPlayPause),
+            contentAlignment = Alignment.Center
         ) {
-            IconButton(
-                onClick = onPrevious,
-                modifier = Modifier.size(64.dp)
-            ) {
-                Text("⏮", fontSize = 32.sp, color = Color.White)
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF00D4AA))
-                    .clickable(onClick = onPlayPause),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (isPlaying) "⏸" else "▶",
-                    fontSize = 32.sp,
-                    color = Color.White
-                )
-            }
-
-            IconButton(
-                onClick = onNext,
-                modifier = Modifier.size(64.dp)
-            ) {
-                Text("⏭", fontSize = 32.sp, color = Color.White)
-            }
+            Text(text = if (isPlaying) "⏸" else "▶", fontSize = 32.sp, color = Color.White)
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Text("⏭", fontSize = 32.sp, color = Color.White, modifier = Modifier.clickable(onClick = onNext))
+    }
+}
 
-        // 播放列表
+@Composable
+private fun CurrentPlaylistPreview(
+    playlist: List<Song>,
+    currentSong: Song?,
+    onSongClick: (Int) -> Unit
+) {
+    if (playlist.isEmpty()) return
+
+    Column {
         Text(
-            text = "播放列表 (${playlist.size})",
+            text = "当前播放 (${playlist.size})",
             color = Color.White,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
         LazyColumn(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 150.dp)
         ) {
-            items(playlist.size) { index ->
-                val song = playlist[index]
-                val isCurrentSong = index == playlist.indexOf(currentSong)
+            itemsIndexed(playlist.take(5)) { index, song ->
+                val isCurrent = song == currentSong
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onSongClick(index) }
-                        .padding(vertical = 12.dp, horizontal = 8.dp),
+                        .padding(vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "${index + 1}",
-                        color = if (isCurrentSong) Color(0xFF00D4AA) else Color.Gray,
-                        fontSize = 14.sp,
-                        modifier = Modifier.width(32.dp)
+                        color = if (isCurrent) Color(0xFF00D4AA) else Color.Gray,
+                        fontSize = 12.sp,
+                        modifier = Modifier.width(24.dp)
                     )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = song.title,
-                            color = if (isCurrentSong) Color(0xFF00D4AA) else Color.White,
-                            fontSize = 14.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = song.artist,
-                            color = Color.Gray,
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
                     Text(
-                        text = formatTime(song.duration),
-                        color = Color.Gray,
-                        fontSize = 12.sp
+                        text = song.title,
+                        color = if (isCurrent) Color(0xFF00D4AA) else Color.White,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
                 }
-
-                Divider(color = Color(0xFF2A2A4E))
             }
         }
     }
