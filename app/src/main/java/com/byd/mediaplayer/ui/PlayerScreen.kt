@@ -73,7 +73,7 @@ fun PlayerScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            colors = SliderDefaultsColors(
+            colors = SliderDefaults.colors(
                 thumbColor = Color(0xFF00D4AA),
                 activeTrackColor = Color(0xFF00D4AA),
                 inactiveTrackColor = Color.Gray
@@ -190,7 +190,7 @@ fun PlayerScreen(
                     )
                 }
 
-                HorizontalDivider(color = Color(0xFF2A2A4E))
+                Divider(color = Color(0xFF2A2A4E))
             }
         }
     }
