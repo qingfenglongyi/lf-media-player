@@ -25,16 +25,52 @@ object MediaStoreHelper {
     )
 
     fun querySongs(context: Context): List<Song> {
-        val songs = mutableListOf<Song>()
-
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
         val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
+
+        return querySongs(context, selection, null, sortOrder)
+    }
+
+    fun querySongsByArtist(context: Context, artist: String): List<Song> {
+        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.ARTIST} = ?"
+        val selectionArgs = arrayOf(artist)
+        val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
+
+        return querySongs(context, selection, selectionArgs, sortOrder)
+    }
+
+    fun querySongsByAlbum(context: Context, album: String): List<Song> {
+        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.ALBUM} = ?"
+        val selectionArgs = arrayOf(album)
+        val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
+
+        return querySongs(context, selection, selectionArgs, sortOrder)
+    }
+
+    fun searchSongs(context: Context, query: String): List<Song> {
+        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND (" +
+                "${MediaStore.Audio.Media.TITLE} LIKE ? OR " +
+                "${MediaStore.Audio.Media.ARTIST} LIKE ? OR " +
+                "${MediaStore.Audio.Media.ALBUM} LIKE ?)"
+        val selectionArgs = arrayOf("%$query%", "%$query%", "%$query%")
+        val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
+
+        return querySongs(context, selection, selectionArgs, sortOrder)
+    }
+
+    private fun querySongs(
+        context: Context,
+        selection: String,
+        selectionArgs: Array<String>?,
+        sortOrder: String
+    ): List<Song> {
+        val songs = mutableListOf<Song>()
 
         context.contentResolver.query(
             collection,
             projection,
             selection,
-            null,
+            selectionArgs,
             sortOrder
         )?.use { cursor ->
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
@@ -72,5 +108,51 @@ object MediaStoreHelper {
         }
 
         return songs
+    }
+
+    fun getAllArtists(context: Context): List<String> {
+        val artists = mutableSetOf<String>()
+
+        val projection = arrayOf(MediaStore.Audio.Media.ARTIST)
+        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+
+        context.contentResolver.query(
+            collection,
+            projection,
+            selection,
+            null,
+            "${MediaStore.Audio.Media.ARTIST} ASC"
+        )?.use { cursor ->
+            val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+
+            while (cursor.moveToNext()) {
+                cursor.getString(artistColumn)?.let { artists.add(it) }
+            }
+        }
+
+        return artists.toList()
+    }
+
+    fun getAllAlbums(context: Context): List<String> {
+        val albums = mutableSetOf<String>()
+
+        val projection = arrayOf(MediaStore.Audio.Media.ALBUM)
+        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+
+        context.contentResolver.query(
+            collection,
+            projection,
+            selection,
+            null,
+            "${MediaStore.Audio.Media.ALBUM} ASC"
+        )?.use { cursor ->
+            val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+
+            while (cursor.moveToNext()) {
+                cursor.getString(albumColumn)?.let { albums.add(it) }
+            }
+        }
+
+        return albums.toList()
     }
 }

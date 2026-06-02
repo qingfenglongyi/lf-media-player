@@ -19,12 +19,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.byd.mediaplayer.data.MediaStoreHelper
 import com.byd.mediaplayer.data.MusicRepository
 import com.byd.mediaplayer.data.database.AppDatabase
 import com.byd.mediaplayer.model.Lyrics
 import com.byd.mediaplayer.model.PlayMode
 import com.byd.mediaplayer.model.Song
 import com.byd.mediaplayer.player.PlayerService
+import com.byd.mediaplayer.ui.LibraryViewState
+import com.byd.mediaplayer.ui.LibrarySortType
 import com.byd.mediaplayer.ui.PlaylistTab
 import com.byd.mediaplayer.ui.PlayerScreen
 import com.byd.mediaplayer.util.LrcParser
@@ -171,6 +174,19 @@ class MainActivity : ComponentActivity() {
         var volume by remember { mutableFloatStateOf(1.0f) }
         var showPlaylistPanel by remember { mutableStateOf(false) }
         var playlistTab by remember { mutableStateOf(PlaylistTab.PLAYING) }
+        var searchQuery by remember { mutableStateOf("") }
+        var sortType by remember { mutableStateOf(LibrarySortType.ALL) }
+        var playlists by remember { mutableStateOf<List<String>>(emptyList()) }
+        var artists by remember { mutableStateOf<List<String>>(emptyList()) }
+        var albums by remember { mutableStateOf<List<String>>(emptyList()) }
+        var searchSongsRef by remember { mutableStateOf<((String) -> Unit)?>(null) }
+        var selectedArtist by remember { mutableStateOf<String?>(null) }
+        var selectedAlbum by remember { mutableStateOf<String?>(null) }
+        var selectedArtistSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
+        var selectedAlbumSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
+        var libraryViewState by remember { mutableStateOf(LibraryViewState.SONGS) }
+        var selectedPlaylistName by remember { mutableStateOf<String?>(null) }
+        var selectedPlaylistSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
 
         LaunchedEffect(playerService) {
             while (playerService == null) {
@@ -178,10 +194,20 @@ class MainActivity : ComponentActivity() {
             }
             val service = playerService ?: return@LaunchedEffect
             val manager = service.getPlayerManager()
+            val repository = MusicRepository.getInstance(this@MainActivity)
 
             // 加载歌曲
-            val repository = MusicRepository.getInstance(this@MainActivity)
             playlist = repository.getAllSongs()
+
+            // 加载艺术家和专辑列表
+            artists = MediaStoreHelper.getAllArtists(this@MainActivity)
+            albums = MediaStoreHelper.getAllAlbums(this@MainActivity)
+
+            // 加载歌单
+            val database = AppDatabase.getInstance(this@MainActivity)
+            database.playlistDao().getAllPlaylists().collect { playlistEntities ->
+                playlists = playlistEntities.map { it.name }
+            }
 
             if (playlist.isNotEmpty()) {
                 val startIndex = preferencesManager.lastPlayedSongId.let { lastId ->
@@ -195,9 +221,13 @@ class MainActivity : ComponentActivity() {
             val currentVolume = preferencesManager.lastVolume
             volume = currentVolume * maxVolume
 
+            // 保存repository引用用于搜索
+            val searchRepository = repository
+
             // 更新播放状态
             launch {
                 while (true) {
+                    val previousSong = currentSong
                     currentSong = manager.currentSong
                     isPlaying = manager.isPlaying
                     currentPosition = manager.currentPosition
@@ -205,16 +235,28 @@ class MainActivity : ComponentActivity() {
                     playMode = manager.playMode
                     playlist = manager.playlist
 
-                    // 加载歌词
-                    currentSong?.let { song ->
-                        if (lyrics == null || lyrics?.lines.isNullOrEmpty()) {
-                            lyrics = LrcParser.parseLrc(song.path)
-                        }
+                    // 歌曲变化时重新加载歌词
+                    if (currentSong != null && currentSong != previousSong) {
+                        lyrics = LrcParser.parseLrc(currentSong.path)
                     }
 
                     delay(500)
                 }
             }
+
+            // 搜索函数
+            val searchSongs: (String) -> Unit = { query ->
+                CoroutineScope(Dispatchers.Main).launch {
+                    playlist = if (query.isBlank()) {
+                        searchRepository.getAllSongs()
+                    } else {
+                        searchRepository.searchSongs(query)
+                    }
+                }
+            }
+
+            // 保存搜索函数引用
+            searchSongsRef = searchSongs
         }
 
         PlayerScreen(
@@ -248,7 +290,95 @@ class MainActivity : ComponentActivity() {
             onCenterViewToggle = { /* 在 PlayerScreen 内部处理 */ },
             onPlaylistToggle = { showPlaylistPanel = !showPlaylistPanel },
             onPlaylistTabChange = { playlistTab = it },
-            onPlaylistDismiss = { showPlaylistPanel = false }
+            onPlaylistDismiss = { showPlaylistPanel = false },
+            onCreatePlaylist = { name ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    AppDatabase.getInstance(this@MainActivity).playlistDao()
+                        .insertPlaylist(com.byd.mediaplayer.model.Playlist(name = name))
+                }
+            },
+            onDeletePlaylist = { name ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    AppDatabase.getInstance(this@MainActivity).playlistDao()
+                        .getAllPlaylists().collect { list ->
+                            list.find { it.name == name }?.let {
+                                AppDatabase.getInstance(this@MainActivity).playlistDao()
+                                    .deletePlaylist(it)
+                            }
+                        }
+                }
+            },
+            onAddToPlaylist = { song ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    // 获取所有歌单，让用户选择（这里简化为添加到第一个歌单）
+                    val database = AppDatabase.getInstance(this@MainActivity)
+                    database.playlistDao().getAllPlaylists().collect { playlists ->
+                        if (playlists.isNotEmpty()) {
+                            val playlistId = playlists.first().id
+                            database.playlistDao().insertPlaylistSong(
+                                com.byd.mediaplayer.model.PlaylistSong(
+                                    playlistId = playlistId,
+                                    songId = song.id,
+                                    position = 0
+                                )
+                            )
+                            // 在主线程显示Toast
+                            CoroutineScope(Dispatchers.Main).launch {
+                                android.widget.Toast.makeText(
+                                    this@MainActivity,
+                                    "已添加 ${song.title} 到 ${playlists.first().name}",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                }
+            },
+            onSearchQueryChange = { query ->
+                searchQuery = query
+                searchSongsRef?.invoke(query)
+            },
+            searchQuery = searchQuery,
+            sortType = sortType,
+            onSortTypeChange = { sortType = it },
+            artists = artists,
+            albums = albums,
+            onArtistClick = { artistName ->
+                selectedArtist = artistName
+                selectedArtistSongs = playlist.filter { it.artist == artistName }
+                libraryViewState = LibraryViewState.ARTIST_SONGS
+            },
+            onAlbumClick = { albumName ->
+                selectedAlbum = albumName
+                selectedAlbumSongs = playlist.filter { it.album == albumName }
+                libraryViewState = LibraryViewState.ALBUM_SONGS
+            },
+            selectedArtist = selectedArtist,
+            selectedAlbum = selectedAlbum,
+            onBackFromArtist = {
+                selectedArtist = null
+                selectedArtistSongs = emptyList()
+                libraryViewState = LibraryViewState.ARTIST_LIST
+            },
+            onBackFromAlbum = {
+                selectedAlbum = null
+                selectedAlbumSongs = emptyList()
+                libraryViewState = LibraryViewState.ALBUM_LIST
+            },
+            onPlaylistClick = { name ->
+                selectedPlaylistName = name
+                // TODO: 从数据库加载歌单歌曲
+                selectedPlaylistSongs = emptyList()
+                libraryViewState = LibraryViewState.PLAYLIST_DETAIL
+            },
+            selectedPlaylistName = selectedPlaylistName,
+            onBackFromPlaylist = {
+                selectedPlaylistName = null
+                selectedPlaylistSongs = emptyList()
+                libraryViewState = LibraryViewState.SONGS
+            },
+            getPlaylistSongs = { name -> selectedPlaylistSongs },
+            viewState = libraryViewState
         )
     }
 }

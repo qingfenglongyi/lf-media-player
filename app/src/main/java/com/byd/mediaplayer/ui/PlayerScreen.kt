@@ -50,6 +50,26 @@ fun PlayerScreen(
     onPlaylistToggle: () -> Unit,
     onPlaylistTabChange: (PlaylistTab) -> Unit,
     onPlaylistDismiss: () -> Unit,
+    onCreatePlaylist: ((String) -> Unit)? = null,
+    onDeletePlaylist: ((String) -> Unit)? = null,
+    onAddToPlaylist: ((Song) -> Unit)? = null,
+    onSearchQueryChange: ((String) -> Unit)? = null,
+    searchQuery: String = "",
+    sortType: LibrarySortType = LibrarySortType.ALL,
+    onSortTypeChange: ((LibrarySortType) -> Unit)? = null,
+    artists: List<String> = emptyList(),
+    albums: List<String> = emptyList(),
+    onArtistClick: ((String) -> Unit)? = null,
+    onAlbumClick: ((String) -> Unit)? = null,
+    selectedArtist: String? = null,
+    selectedAlbum: String? = null,
+    onBackFromArtist: (() -> Unit)? = null,
+    onBackFromAlbum: (() -> Unit)? = null,
+    onPlaylistClick: ((String) -> Unit)? = null,
+    selectedPlaylistName: String? = null,
+    onBackFromPlaylist: (() -> Unit)? = null,
+    getPlaylistSongs: ((String) -> List<Song>)? = null,
+    viewState: LibraryViewState = LibraryViewState.SONGS,
     modifier: Modifier = Modifier
 ) {
     var centerView by remember { mutableStateOf(CenterView.VINYL) }
@@ -63,7 +83,7 @@ fun PlayerScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // 顶部栏
@@ -74,7 +94,7 @@ fun PlayerScreen(
                 onVolumeClick = { showVolumeSlider = !showVolumeSlider }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // 中心视图切换区域
             Box(
@@ -108,7 +128,11 @@ fun PlayerScreen(
 
             // 歌曲信息
             Text(
-                text = currentSong?.title ?: "未选择歌曲",
+                text = buildString {
+                    append(currentSong?.title ?: "未选择歌曲")
+                    append(" - ")
+                    append(currentSong?.artist ?: "比亚迪音乐播放器")
+                },
                 color = Color.White,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
@@ -116,17 +140,7 @@ fun PlayerScreen(
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = currentSong?.artist ?: "比亚迪音乐播放器",
-                color = Color.Gray,
-                fontSize = 14.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // 进度条
             ProgressBar(
@@ -177,8 +191,8 @@ fun PlayerScreen(
         PlaylistPanel(
             visible = showPlaylistPanel,
             currentPlaylist = playlist,
-            allSongs = playlist, // TODO: 实际从仓库获取
-            playlists = emptyList(), // TODO: 实际从数据库获取
+            allSongs = playlist,
+            playlists = emptyList(),
             currentTab = playlistTab,
             currentSongIndex = playlist.indexOf(currentSong),
             onTabChange = onPlaylistTabChange,
@@ -186,7 +200,27 @@ fun PlayerScreen(
                 onSongClick(index)
                 onPlaylistDismiss()
             },
-            onDismiss = onPlaylistDismiss
+            onDismiss = onPlaylistDismiss,
+            onCreatePlaylist = onCreatePlaylist,
+            onDeletePlaylist = onDeletePlaylist,
+            onAddToPlaylist = onAddToPlaylist,
+            onSearchQueryChange = onSearchQueryChange,
+            searchQuery = searchQuery,
+            sortType = sortType,
+            onSortTypeChange = onSortTypeChange,
+            artists = artists,
+            albums = albums,
+            onArtistClick = onArtistClick,
+            onAlbumClick = onAlbumClick,
+            selectedArtist = selectedArtist,
+            selectedAlbum = selectedAlbum,
+            onBackFromArtist = onBackFromArtist,
+            onBackFromAlbum = onBackFromAlbum,
+            onPlaylistClick = onPlaylistClick,
+            selectedPlaylistName = selectedPlaylistName,
+            onBackFromPlaylist = onBackFromPlaylist,
+            getPlaylistSongs = getPlaylistSongs,
+            viewState = viewState
         )
     }
 }
@@ -271,7 +305,7 @@ private fun PlaybackControls(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 16.dp),
+            .padding(vertical = 20.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {

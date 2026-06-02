@@ -142,21 +142,7 @@ lf-media-player/
 ## 编译方式
 
 ### 本地编译
-
-```bash
-# 1. 克隆项目
-git clone https://github.com/your-username/lf-media-player.git
-cd lf-media-player
-
-# 2. 设置 Gradle Wrapper
-./gradlew wrapper
-
-# 3. 编译 Debug APK
-./gradlew assembleDebug
-
-# 4. 输出路径
-# app/build/outputs/apk/debug/app-debug.apk
-```
+本地无环境，无法编译
 
 ### GitHub Actions 自动编译
 
