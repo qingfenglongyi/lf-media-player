@@ -135,8 +135,8 @@ fun PlaylistPanel(
                             } else {
                                 PlaylistListContent(
                                     playlists = playlists,
-                                    onPlaylistClick = onPlaylistClick ?: { name ->
-                                        viewState = LibraryViewState.PLAYLIST_DETAIL
+                                    onPlaylistClick = { name ->
+                                        onPlaylistClick?.invoke(name)
                                     },
                                     onCreateClick = { showCreateDialog = true },
                                     onDeleteClick = { name ->
@@ -156,6 +156,10 @@ fun PlaylistPanel(
                                 artists = artists,
                                 albums = albums,
                                 onSongClick = onSongClick,
+                                onSongLongPress = { song ->
+                                    songToAdd = song
+                                    showAddToPlaylistDialog = true
+                                },
                                 viewState = viewState,
                                 onViewStateChange = { viewState = it },
                                 onArtistClick = onArtistClick ?: { viewState = LibraryViewState.ARTIST_SONGS },
@@ -305,6 +309,7 @@ private fun LibraryContent(
     artists: List<String>,
     albums: List<String>,
     onSongClick: (Int) -> Unit,
+    onSongLongPress: ((Song) -> Unit)?,
     viewState: LibraryViewState,
     onViewStateChange: (LibraryViewState) -> Unit,
     onArtistClick: (String) -> Unit,
@@ -365,10 +370,7 @@ private fun LibraryContent(
                         songs = songs,
                         currentIndex = -1,
                         onSongClick = onSongClick,
-                        onSongLongPress = { song ->
-                            songToAdd = song
-                            showAddToPlaylistDialog = true
-                        }
+                        onSongLongPress = onSongLongPress
                     )
                 }
                 LibraryViewState.ARTIST_LIST -> {

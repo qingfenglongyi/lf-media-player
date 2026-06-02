@@ -236,8 +236,10 @@ class MainActivity : ComponentActivity() {
                     playlist = manager.playlist
 
                     // 歌曲变化时重新加载歌词
-                    if (currentSong != null && currentSong != previousSong) {
-                        lyrics = LrcParser.parseLrc(currentSong.path)
+                    currentSong?.let { song ->
+                        if (song != previousSong) {
+                            lyrics = LrcParser.parseLrc(song.path)
+                        }
                     }
 
                     delay(500)
