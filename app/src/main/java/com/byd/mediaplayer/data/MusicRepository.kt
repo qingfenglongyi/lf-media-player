@@ -2,8 +2,8 @@ package com.byd.mediaplayer.data
 
 import android.content.Context
 import com.byd.mediaplayer.data.database.AppDatabase
-import com.byd.mediaplayer.data.database.SongEntity
 import com.byd.mediaplayer.model.Song
+import com.byd.mediaplayer.model.SongEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map

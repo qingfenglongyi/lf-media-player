@@ -74,6 +74,7 @@ fun PlaylistPanel(
     selectedPlaylistName: String? = null,
     onBackFromPlaylist: (() -> Unit)? = null,
     getPlaylistSongs: ((String) -> List<Song>)? = null,
+    viewState: LibraryViewState = LibraryViewState.SONGS,
     modifier: Modifier = Modifier
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -82,7 +83,6 @@ fun PlaylistPanel(
     var playlistToDelete by remember { mutableStateOf<String?>(null) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var songToAdd by remember { mutableStateOf<Song?>(null) }
-    var viewState by remember { mutableStateOf(LibraryViewState.SONGS) }
 
     AnimatedVisibility(
         visible = visible,
@@ -190,7 +190,14 @@ fun PlaylistPanel(
                         BasicTextField(
                             value = newPlaylistName,
                             onValueChange = { newPlaylistName = it },
-                            decoration = { Text("请输入歌单名称") },
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (newPlaylistName.isEmpty()) {
+                                        Text("请输入歌单名称", color = Color.Gray)
+                                    }
+                                    innerTextField()
+                                }
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
@@ -312,11 +319,13 @@ private fun LibraryContent(
         BasicTextField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
-            decoration = {
-                Text(
-                    text = "搜索歌曲...",
-                    color = Color.Gray
-                )
+            decorationBox = { innerTextField ->
+                Box {
+                    if (searchQuery.isEmpty()) {
+                        Text("搜索歌曲...", color = Color.Gray)
+                    }
+                    innerTextField()
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -391,6 +400,9 @@ private fun LibraryContent(
                         onSongClick = onSongClick,
                         onBack = onBackFromAlbum
                     )
+                }
+                LibraryViewState.PLAYLIST_DETAIL -> {
+                    // 歌单详情在 PlaylistTab.PLAYLISTS 中处理
                 }
             }
         }
@@ -540,7 +552,7 @@ private fun ArtistSongsContent(
             )
         }
 
-        HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+        Divider(color = Color.Gray.copy(alpha = 0.2f))
 
         // 歌曲列表
         if (songs.isEmpty()) {
@@ -622,7 +634,7 @@ private fun AlbumSongsContent(
             )
         }
 
-        HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+        Divider(color = Color.Gray.copy(alpha = 0.2f))
 
         // 歌曲列表
         if (songs.isEmpty()) {
@@ -687,6 +699,7 @@ private fun TabButton(
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PlaylistContent(
     songs: List<Song>,
@@ -781,7 +794,7 @@ private fun PlaylistListContent(
             )
         }
 
-        HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+        Divider(color = Color.Gray.copy(alpha = 0.2f))
 
         // 歌单列表
         if (playlists.isEmpty()) {
@@ -862,7 +875,7 @@ private fun PlaylistDetailContent(
             )
         }
 
-        HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+        Divider(color = Color.Gray.copy(alpha = 0.2f))
 
         // 歌曲列表
         if (songs.isEmpty()) {
