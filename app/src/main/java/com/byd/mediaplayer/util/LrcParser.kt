@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.byd.mediaplayer.model.Lyrics
 import java.io.File
+import java.nio.charset.Charset
 
 object LrcParser {
 
