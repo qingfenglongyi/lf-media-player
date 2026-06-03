@@ -1266,11 +1266,6 @@ private fun PlaylistContent(
         }
     }
 }
-                }
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
