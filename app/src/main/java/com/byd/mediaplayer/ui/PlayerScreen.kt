@@ -342,7 +342,6 @@ private fun PlaybackControls(
                     color = Color.White,
                     modifier = Modifier.clickable(onClick = onPlayModeChange)
                 )
-                Text("🔊", fontSize = 28.sp, color = Color.White, modifier = Modifier.clickable(onClick = onVolumeClick))
                 Text("📋", fontSize = 28.sp, color = Color.White, modifier = Modifier.clickable(onClick = onPlaylistToggle))
             }
         }
