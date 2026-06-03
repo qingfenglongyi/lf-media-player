@@ -1,6 +1,7 @@
 package com.byd.mediaplayer.util
 
 import android.content.Context
+import android.os.Build
 import android.os.Environment
 import java.io.File
 import java.io.FileWriter
@@ -17,11 +18,15 @@ object Logger {
     fun init(context: Context, enabled: Boolean = false) {
         isEnabled = enabled
         if (isEnabled) {
-            val documentsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-            logDir = File(documentsDir, "logs")
-            if (!logDir!!.exists()) {
+            // 尝试多个可能的目录
+            logDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+            if (logDir == null) {
+                logDir = File(context.filesDir, "logs")
+            }
+            if (logDir != null && !logDir!!.exists()) {
                 logDir!!.mkdirs()
             }
+            log("INFO", "Logger", "日志目录: ${logDir?.absolutePath}")
         }
     }
 
@@ -72,4 +77,6 @@ object Logger {
         if (!isEnabled || logDir == null) return
         logDir!!.listFiles()?.forEach { it.delete() }
     }
+
+    fun getLogDir(): File? = logDir
 }
