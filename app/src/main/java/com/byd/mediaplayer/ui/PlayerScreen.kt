@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -83,15 +84,22 @@ fun PlayerScreen(
                 .padding(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 顶部栏
-            TopBar(
-                playMode = playMode,
-                onPlayModeChange = onPlayModeChange,
-                onPlaylistToggle = onPlaylistToggle,
-                onVolumeClick = { showVolumeSlider = !showVolumeSlider }
+            // 歌曲信息
+            Text(
+                text = buildString {
+                    append(currentSong?.title ?: "未选择歌曲")
+                    append(" - ")
+                    append(currentSong?.artist ?: "比亚迪音乐播放器")
+                },
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(vertical = 10.dp)
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // 中心视图切换区域
             Box(
@@ -123,21 +131,7 @@ fun PlayerScreen(
                 }
             }
 
-            // 歌曲信息
-            Text(
-                text = buildString {
-                    append(currentSong?.title ?: "未选择歌曲")
-                    append(" - ")
-                    append(currentSong?.artist ?: "比亚迪音乐播放器")
-                },
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // 进度条
             ProgressBar(
@@ -146,12 +140,18 @@ fun PlayerScreen(
                 onSeek = onSeek
             )
 
-            // 播放控制按钮
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 播放控制按钮（根据屏幕方向自适应布局）
             PlaybackControls(
                 isPlaying = isPlaying,
+                playMode = playMode,
                 onPlayPause = onPlayPause,
                 onNext = onNext,
-                onPrevious = onPrevious
+                onPrevious = onPrevious,
+                onPlayModeChange = onPlayModeChange,
+                onPlaylistToggle = onPlaylistToggle,
+                onVolumeClick = { showVolumeSlider = !showVolumeSlider }
             )
         }
 
@@ -215,45 +215,6 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun TopBar(
-    playMode: PlayMode,
-    onPlayModeChange: () -> Unit,
-    onPlaylistToggle: () -> Unit,
-    onVolumeClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // 播放模式
-        Text(
-            text = when (playMode) {
-                PlayMode.LIST_LOOP -> "🔁"
-                PlayMode.SINGLE_LOOP -> "🔂"
-                PlayMode.SHUFFLE -> "🔀"
-            },
-            fontSize = 24.sp,
-            modifier = Modifier.clickable(onClick = onPlayModeChange)
-        )
-
-        Row {
-            Text(
-                text = "🔊",
-                fontSize = 24.sp,
-                modifier = Modifier.clickable(onClick = onVolumeClick)
-            )
-            Spacer(modifier = Modifier.width(24.dp))
-            Text(
-                text = "📋",
-                fontSize = 24.sp,
-                modifier = Modifier.clickable(onClick = onPlaylistToggle)
-            )
-        }
-    }
-}
-
-@Composable
 private fun ProgressBar(
     currentPosition: Long,
     duration: Long,
@@ -287,31 +248,104 @@ private fun ProgressBar(
 @Composable
 private fun PlaybackControls(
     isPlaying: Boolean,
+    playMode: PlayMode,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
-    onPrevious: () -> Unit
+    onPrevious: () -> Unit,
+    onPlayModeChange: () -> Unit,
+    onPlaylistToggle: () -> Unit,
+    onVolumeClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 20.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text("⏮", fontSize = 32.sp, color = Color.White, modifier = Modifier.clickable(onClick = onPrevious))
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
 
-        Box(
+    if (isLandscape) {
+        // 横屏布局：一行，五个按键等大
+        Row(
             modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF00D4AA))
-                .clickable(onClick = onPlayPause),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = if (isPlaying) "⏸" else "▶", fontSize = 32.sp, color = Color.White)
+            // 播放模式
+            Text(
+                text = when (playMode) {
+                    PlayMode.LIST_LOOP -> "🔁"
+                    PlayMode.SINGLE_LOOP -> "🔂"
+                    PlayMode.SHUFFLE -> "🔀"
+                },
+                fontSize = 24.sp,
+                color = Color.White,
+                modifier = Modifier.clickable(onClick = onPlayModeChange)
+            )
+            // 上一曲
+            Text("⏮", fontSize = 32.sp, color = Color.White, modifier = Modifier.clickable(onClick = onPrevious))
+            // 播放/暂停
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF00D4AA))
+                    .clickable(onClick = onPlayPause),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = if (isPlaying) "⏸" else "▶", fontSize = 32.sp, color = Color.White)
+            }
+            // 下一曲
+            Text("⏭", fontSize = 32.sp, color = Color.White, modifier = Modifier.clickable(onClick = onNext))
+            // 列表
+            Text("📋", fontSize = 24.sp, color = Color.White, modifier = Modifier.clickable(onClick = onPlaylistToggle))
         }
-
-        Text("⏭", fontSize = 32.sp, color = Color.White, modifier = Modifier.clickable(onClick = onNext))
+    } else {
+        // 竖屏布局：两行
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // 上行：上一曲、播放/暂停、下一曲（按键较大）
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("⏮", fontSize = 48.sp, color = Color.White, modifier = Modifier.clickable(onClick = onPrevious))
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF00D4AA))
+                        .clickable(onClick = onPlayPause),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = if (isPlaying) "⏸" else "▶", fontSize = 40.sp, color = Color.White)
+                }
+                Text("⏭", fontSize = 48.sp, color = Color.White, modifier = Modifier.clickable(onClick = onNext))
+            }
+            // 下行：播放模式、列表（按键略小）
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 5.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = when (playMode) {
+                        PlayMode.LIST_LOOP -> "🔁"
+                        PlayMode.SINGLE_LOOP -> "🔂"
+                        PlayMode.SHUFFLE -> "🔀"
+                    },
+                    fontSize = 28.sp,
+                    color = Color.White,
+                    modifier = Modifier.clickable(onClick = onPlayModeChange)
+                )
+                Text("🔊", fontSize = 28.sp, color = Color.White, modifier = Modifier.clickable(onClick = onVolumeClick))
+                Text("📋", fontSize = 28.sp, color = Color.White, modifier = Modifier.clickable(onClick = onPlaylistToggle))
+            }
+        }
     }
 }
 
