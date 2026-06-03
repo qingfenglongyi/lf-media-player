@@ -58,6 +58,12 @@ fun PlaylistPanel(
     onCreatePlaylist: ((String) -> Unit)? = null,
     onDeletePlaylist: ((String) -> Unit)? = null,
     onAddToPlaylist: ((Song) -> Unit)? = null,
+    onAddSongsToPlaylist: ((List<Song>) -> Unit)? = null,
+    onAddSongsToQueue: ((List<Song>) -> Unit)? = null,
+    onDeleteSongsFromPlaylist: ((List<Int>) -> Unit)? = null,
+    onRemoveSongFromPlaylist: ((String, Int) -> Unit)? = null,
+    onDeleteSongsFromLibrary: ((List<Long>) -> Unit)? = null,
+    onClearPlaylist: (() -> Unit)? = null,
     onSearchQueryChange: ((String) -> Unit)? = null,
     searchQuery: String = "",
     sortType: LibrarySortType = LibrarySortType.ALL,
@@ -84,6 +90,11 @@ fun PlaylistPanel(
     var songToAdd by remember { mutableStateOf<Song?>(null) }
     var viewState by remember { mutableStateOf(LibraryViewState.SONGS) }
 
+    // 多选模式状态
+    var isMultiSelectMode by remember { mutableStateOf(false) }
+    var selectedSongIndices by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var showMenu by remember { mutableStateOf(false) }
+
     AnimatedVisibility(
         visible = visible,
         enter = slideInHorizontally { it },
@@ -92,7 +103,7 @@ fun PlaylistPanel(
         Box(
             modifier = modifier
                 .fillMaxHeight()
-                .width(320.dp)
+                .fillMaxWidth()
                 .background(Color(0xFF1A1A2E), RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -114,23 +125,63 @@ fun PlaylistPanel(
                     }
                 }
 
-                // 内容区域
+                // 多选模式状态（库页面）
+    var libraryMultiSelectMode by remember { mutableStateOf(false) }
+    var librarySelectedIndices by remember { mutableStateOf<Set<Int>>(emptySet()) }
+
+    // 内容区域
                 Box(modifier = Modifier.weight(1f)) {
                     when (currentTab) {
                         PlaylistTab.PLAYING -> {
-                            PlaylistContent(
-                                songs = currentPlaylist,
-                                currentIndex = currentSongIndex,
-                                onSongClick = onSongClick
-                            )
+                            if (isMultiSelectMode) {
+                                MultiSelectPlaylistContent(
+                                    songs = currentPlaylist,
+                                    currentIndex = currentSongIndex,
+                                    selectedIndices = selectedSongIndices,
+                                    onSongClick = { index ->
+                                        if (selectedSongIndices.contains(index)) {
+                                            selectedSongIndices = selectedSongIndices - index
+                                        } else {
+                                            selectedSongIndices = selectedSongIndices + index
+                                        }
+                                    },
+                                    onToggleMultiSelect = {
+                                        isMultiSelectMode = false
+                                        selectedSongIndices = emptySet()
+                                    },
+                                    onClearPlaylist = onClearPlaylist,
+                                    onDeleteSelected = { indices ->
+                                        onDeleteSongsFromPlaylist?.invoke(indices.toList())
+                                        isMultiSelectMode = false
+                                        selectedSongIndices = emptySet()
+                                    },
+                                    onAddToPlaylist = { songs ->
+                                        songToAdd = songs.firstOrNull()
+                                        showAddToPlaylistDialog = true
+                                    }
+                                )
+                            } else {
+                                PlaylistContent(
+                                    songs = currentPlaylist,
+                                    currentIndex = currentSongIndex,
+                                    onSongClick = onSongClick,
+                                    onMultiSelectToggle = {
+                                        isMultiSelectMode = true
+                                    }
+                                )
+                            }
                         }
                         PlaylistTab.PLAYLISTS -> {
                             if (viewState == LibraryViewState.PLAYLIST_DETAIL && selectedPlaylistName != null) {
+                                val playlistSongs = getPlaylistSongs?.invoke(selectedPlaylistName) ?: emptyList()
                                 PlaylistDetailContent(
                                     playlistName = selectedPlaylistName,
-                                    songs = getPlaylistSongs?.invoke(selectedPlaylistName) ?: emptyList(),
+                                    songs = playlistSongs,
                                     onSongClick = onSongClick,
-                                    onBack = { onBackFromPlaylist?.invoke() }
+                                    onBack = { onBackFromPlaylist?.invoke() },
+                                    onDeleteSong = { index ->
+                                        onRemoveSongFromPlaylist?.invoke(selectedPlaylistName, index)
+                                    }
                                 )
                             } else {
                                 PlaylistListContent(
@@ -147,28 +198,79 @@ fun PlaylistPanel(
                             }
                         }
                         PlaylistTab.LIBRARY -> {
-                            LibraryContent(
-                                songs = allSongs,
-                                searchQuery = searchQuery,
-                                onSearchQueryChange = onSearchQueryChange ?: {},
-                                sortType = sortType,
-                                onSortTypeChange = onSortTypeChange ?: {},
-                                artists = artists,
-                                albums = albums,
-                                onSongClick = onSongClick,
-                                onSongLongPress = { song ->
-                                    songToAdd = song
-                                    showAddToPlaylistDialog = true
-                                },
-                                viewState = viewState,
-                                onViewStateChange = { viewState = it },
-                                onArtistClick = onArtistClick ?: { viewState = LibraryViewState.ARTIST_SONGS },
-                                onAlbumClick = onAlbumClick ?: { viewState = LibraryViewState.ALBUM_SONGS },
-                                selectedArtist = selectedArtist,
-                                selectedAlbum = selectedAlbum,
-                                onBackFromArtist = onBackFromArtist ?: { viewState = LibraryViewState.ARTIST_LIST },
-                                onBackFromAlbum = onBackFromAlbum ?: { viewState = LibraryViewState.ALBUM_LIST }
-                            )
+                            if (viewState == LibraryViewState.SONGS) {
+                                if (libraryMultiSelectMode) {
+                                    LibraryMultiSelectContent(
+                                        songs = allSongs,
+                                        selectedIndices = librarySelectedIndices,
+                                        onSongClick = { index ->
+                                            if (librarySelectedIndices.contains(index)) {
+                                                librarySelectedIndices = librarySelectedIndices - index
+                                            } else {
+                                                librarySelectedIndices = librarySelectedIndices + index
+                                            }
+                                        },
+                                        onToggleMultiSelect = {
+                                            libraryMultiSelectMode = false
+                                            librarySelectedIndices = emptySet()
+                                        },
+                                        onAddToQueue = { indices ->
+                                            val songs = indices.map { allSongs[it] }
+                                            onAddSongsToQueue?.invoke(songs)
+                                        },
+                                        onAddToPlaylist = { indices ->
+                                            val songs = indices.map { allSongs[it] }
+                                            onAddSongsToPlaylist?.invoke(songs)
+                                        },
+                                        onDeleteFromLibrary = { indices ->
+                                            val ids = indices.map { allSongs[it].id }
+                                            onDeleteSongsFromLibrary?.invoke(ids)
+                                            libraryMultiSelectMode = false
+                                            librarySelectedIndices = emptySet()
+                                        }
+                                    )
+                                } else {
+                                    LibraryContent(
+                                        songs = allSongs,
+                                        searchQuery = searchQuery,
+                                        onSearchQueryChange = onSearchQueryChange ?: {},
+                                        sortType = sortType,
+                                        onSortTypeChange = onSortTypeChange ?: {},
+                                        artists = artists,
+                                        albums = albums,
+                                        onSongClick = onSongClick,
+                                        onMultiSelectToggle = { libraryMultiSelectMode = true },
+                                        viewState = viewState,
+                                        onViewStateChange = { viewState = it },
+                                        onArtistClick = onArtistClick ?: { viewState = LibraryViewState.ARTIST_SONGS },
+                                        onAlbumClick = onAlbumClick ?: { viewState = LibraryViewState.ALBUM_SONGS },
+                                        selectedArtist = selectedArtist,
+                                        selectedAlbum = selectedAlbum,
+                                        onBackFromArtist = onBackFromArtist ?: { viewState = LibraryViewState.ARTIST_LIST },
+                                        onBackFromAlbum = onBackFromAlbum ?: { viewState = LibraryViewState.ALBUM_LIST }
+                                    )
+                                }
+                            } else {
+                                LibraryContent(
+                                    songs = allSongs,
+                                    searchQuery = searchQuery,
+                                    onSearchQueryChange = onSearchQueryChange ?: {},
+                                    sortType = sortType,
+                                    onSortTypeChange = onSortTypeChange ?: {},
+                                    artists = artists,
+                                    albums = albums,
+                                    onSongClick = onSongClick,
+                                    onMultiSelectToggle = null,
+                                    viewState = viewState,
+                                    onViewStateChange = { viewState = it },
+                                    onArtistClick = onArtistClick ?: { viewState = LibraryViewState.ARTIST_SONGS },
+                                    onAlbumClick = onAlbumClick ?: { viewState = LibraryViewState.ALBUM_SONGS },
+                                    selectedArtist = selectedArtist,
+                                    selectedAlbum = selectedAlbum,
+                                    onBackFromArtist = onBackFromArtist ?: { viewState = LibraryViewState.ARTIST_LIST },
+                                    onBackFromAlbum = onBackFromAlbum ?: { viewState = LibraryViewState.ALBUM_LIST }
+                                )
+                            }
                         }
                     }
                 }
@@ -309,7 +411,7 @@ private fun LibraryContent(
     artists: List<String>,
     albums: List<String>,
     onSongClick: (Int) -> Unit,
-    onSongLongPress: ((Song) -> Unit)?,
+    onMultiSelectToggle: (() -> Unit)?,
     viewState: LibraryViewState,
     onViewStateChange: (LibraryViewState) -> Unit,
     onArtistClick: (String) -> Unit,
@@ -370,7 +472,7 @@ private fun LibraryContent(
                         songs = songs,
                         currentIndex = -1,
                         onSongClick = onSongClick,
-                        onSongLongPress = onSongLongPress
+                        onMultiSelectToggle = onMultiSelectToggle
                     )
                 }
                 LibraryViewState.ARTIST_LIST -> {
@@ -707,7 +809,7 @@ private fun PlaylistContent(
     songs: List<Song>,
     currentIndex: Int,
     onSongClick: (Int) -> Unit,
-    onSongLongPress: ((Song) -> Unit)? = null
+    onMultiSelectToggle: (() -> Unit)? = null
 ) {
     if (songs.isEmpty()) {
         Box(
@@ -725,10 +827,10 @@ private fun PlaylistContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(
-                            if (onSongLongPress != null) {
+                            if (onMultiSelectToggle != null) {
                                 Modifier.combinedClickable(
                                     onClick = { onSongClick(index) },
-                                    onLongClick = { onSongLongPress(song) }
+                                    onLongClick = { onMultiSelectToggle() }
                                 )
                             } else {
                                 Modifier.clickable { onSongClick(index) }
@@ -765,6 +867,140 @@ private fun PlaylistContent(
                         color = Color.Gray,
                         fontSize = 12.sp
                     )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MultiSelectPlaylistContent(
+    songs: List<Song>,
+    currentIndex: Int,
+    selectedIndices: Set<Int>,
+    onSongClick: (Int) -> Unit,
+    onToggleMultiSelect: () -> Unit,
+    onClearPlaylist: (() -> Unit)?,
+    onDeleteSelected: (Set<Int>) -> Unit,
+    onAddToPlaylist: (List<Song>) -> Unit
+) {
+    var showDropdownMenu by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // 操作栏
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "已选择 ${selectedIndices.size} 首",
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
+                Row {
+                    Text(
+                        text = if (selectedIndices.isNotEmpty()) "📋" else "📋",
+                        fontSize = 20.sp,
+                        modifier = Modifier
+                            .clickable { showDropdownMenu = true }
+                            .padding(8.dp)
+                    )
+                    DropdownMenu(
+                        expanded = showDropdownMenu,
+                        onDismissRequest = { showDropdownMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("清空播放列表") },
+                            onClick = {
+                                onClearPlaylist?.invoke()
+                                showDropdownMenu = false
+                            }
+                        )
+                        if (selectedIndices.isNotEmpty()) {
+                            DropdownMenuItem(
+                                text = { Text("删除") },
+                                onClick = {
+                                    onDeleteSelected(selectedIndices)
+                                    showDropdownMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("添加到歌单") },
+                                onClick = {
+                                    val selectedSongs = selectedIndices.map { songs[it] }
+                                    onAddToPlaylist(selectedSongs)
+                                    showDropdownMenu = false
+                                }
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "选择/取消选择",
+                        color = Color(0xFF00D4AA),
+                        fontSize = 14.sp,
+                        modifier = Modifier.clickable { onToggleMultiSelect() }
+                    )
+                }
+            }
+
+            Divider(color = Color.Gray.copy(alpha = 0.2f))
+
+            // 歌曲列表
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                itemsIndexed(songs) { index, song ->
+                    val isCurrentSong = index == currentIndex
+                    val isSelected = selectedIndices.contains(index)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSongClick(index) }
+                            .background(if (isSelected) Color(0xFF2A2A4E) else Color.Transparent)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = isSelected,
+                            onCheckedChange = { onSongClick(index) },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = Color(0xFF00D4AA),
+                                uncheckedColor = Color.Gray
+                            )
+                        )
+                        Text(
+                            text = "${index + 1}",
+                            color = if (isCurrentSong) Color(0xFF00D4AA) else Color.Gray,
+                            fontSize = 12.sp,
+                            modifier = Modifier.width(32.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = song.title,
+                                color = if (isCurrentSong) Color(0xFF00D4AA) else Color.White,
+                                fontSize = 14.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = song.artist,
+                                color = Color.Gray,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Text(
+                            text = formatTime(song.duration),
+                            color = Color.Gray,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
         }
@@ -845,12 +1081,153 @@ private fun formatTime(time: Long): String {
     return "%02d:%02d".format(minutes, seconds)
 }
 
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun LibraryMultiSelectContent(
+    songs: List<Song>,
+    selectedIndices: Set<Int>,
+    onSongClick: (Int) -> Unit,
+    onToggleMultiSelect: () -> Unit,
+    onAddToQueue: (Set<Int>) -> Unit,
+    onAddToPlaylist: (Set<Int>) -> Unit,
+    onDeleteFromLibrary: (Set<Int>) -> Unit
+) {
+    var showDropdownMenu by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // 搜索框
+        BasicTextField(
+            value = "",
+            onValueChange = {},
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                .padding(12.dp)
+        )
+
+        // 操作栏
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "已选择 ${selectedIndices.size} 首",
+                color = Color.White,
+                fontSize = 14.sp
+            )
+            Row {
+                Text(
+                    text = "📋",
+                    fontSize = 20.sp,
+                    modifier = Modifier
+                        .clickable { showDropdownMenu = true }
+                        .padding(8.dp)
+                )
+                DropdownMenu(
+                    expanded = showDropdownMenu,
+                    onDismissRequest = { showDropdownMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("添加到播放列表") },
+                        onClick = {
+                            onAddToQueue(selectedIndices)
+                            showDropdownMenu = false
+                        }
+                    )
+                    if (selectedIndices.isNotEmpty()) {
+                        DropdownMenuItem(
+                            text = { Text("添加到歌单") },
+                            onClick = {
+                                onAddToPlaylist(selectedIndices)
+                                showDropdownMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("从歌曲库中删除") },
+                            onClick = {
+                                onDeleteFromLibrary(selectedIndices)
+                                showDropdownMenu = false
+                            }
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "选择/取消选择",
+                    color = Color(0xFF00D4AA),
+                    fontSize = 14.sp,
+                    modifier = Modifier.clickable { onToggleMultiSelect() }
+                )
+            }
+        }
+
+        Divider(color = Color.Gray.copy(alpha = 0.2f))
+
+        // 歌曲列表
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            itemsIndexed(songs) { index, song ->
+                val isSelected = selectedIndices.contains(index)
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSongClick(index) }
+                        .background(if (isSelected) Color(0xFF2A2A4E) else Color.Transparent)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onSongClick(index) },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = Color(0xFF00D4AA),
+                            uncheckedColor = Color.Gray
+                        )
+                    )
+                    Text(
+                        text = "${index + 1}",
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                        modifier = Modifier.width(32.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = song.title,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = song.artist,
+                            color = Color.Gray,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Text(
+                        text = formatTime(song.duration),
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun PlaylistDetailContent(
     playlistName: String,
     songs: List<Song>,
     onSongClick: (Int) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onDeleteSong: ((Int) -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // 返回按钮和标题
@@ -897,7 +1274,7 @@ private fun PlaylistDetailContent(
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "📋", fontSize = 16.sp)
+                        Text(text = "💿", fontSize = 16.sp)
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -920,6 +1297,14 @@ private fun PlaylistDetailContent(
                             color = Color.Gray,
                             fontSize = 12.sp
                         )
+                        if (onDeleteSong != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "🗑",
+                                fontSize = 16.sp,
+                                modifier = Modifier.clickable { onDeleteSong(index) }
+                            )
+                        }
                     }
                 }
             }

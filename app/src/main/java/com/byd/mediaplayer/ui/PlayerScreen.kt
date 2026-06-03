@@ -4,8 +4,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -154,13 +152,6 @@ fun PlayerScreen(
                 onPlayPause = onPlayPause,
                 onNext = onNext,
                 onPrevious = onPrevious
-            )
-
-            // 当前播放列表预览
-            CurrentPlaylistPreview(
-                playlist = playlist,
-                currentSong = currentSong,
-                onSongClick = onSongClick
             )
         }
 
@@ -321,58 +312,6 @@ private fun PlaybackControls(
         }
 
         Text("⏭", fontSize = 32.sp, color = Color.White, modifier = Modifier.clickable(onClick = onNext))
-    }
-}
-
-@Composable
-private fun CurrentPlaylistPreview(
-    playlist: List<Song>,
-    currentSong: Song?,
-    onSongClick: (Int) -> Unit
-) {
-    if (playlist.isEmpty()) return
-
-    Column {
-        Text(
-            text = "当前播放 (${playlist.size})",
-            color = Color.White,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 150.dp)
-        ) {
-            itemsIndexed(playlist.take(5)) { index, song ->
-                val isCurrent = song == currentSong
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSongClick(index) }
-                        .padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${index + 1}",
-                        color = if (isCurrent) Color(0xFF00D4AA) else Color.Gray,
-                        fontSize = 12.sp,
-                        modifier = Modifier.width(24.dp)
-                    )
-                    Text(
-                        text = song.title,
-                        color = if (isCurrent) Color(0xFF00D4AA) else Color.White,
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        }
     }
 }
 
