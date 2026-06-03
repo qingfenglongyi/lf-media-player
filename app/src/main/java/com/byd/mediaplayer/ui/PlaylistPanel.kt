@@ -138,13 +138,6 @@ fun PlaylistPanel(
                                     songs = currentPlaylist,
                                     currentIndex = currentSongIndex,
                                     selectedIndices = selectedSongIndices,
-                                    onSongClick = { index ->
-                                        if (selectedSongIndices.contains(index)) {
-                                            selectedSongIndices = selectedSongIndices - index
-                                        } else {
-                                            selectedSongIndices = selectedSongIndices + index
-                                        }
-                                    },
                                     onToggleMultiSelect = {
                                         isMultiSelectMode = false
                                         selectedSongIndices = emptySet()
@@ -543,7 +536,7 @@ private fun LibraryContent(
                         songs = songs,
                         onSongClick = onSongClick,
                         selectedIndices = selectedIndices,
-                        onSelectionChange = onSelectionChange,
+                        onSelectionChange = { index -> onSelectionChange?.invoke(index) },
                         onToggleMultiSelect = {
                             onMultiSelectToggle?.invoke()
                         },
@@ -1111,7 +1104,7 @@ private fun PlayingListContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                if (selectedIndices.isNotEmpty() || isMultiSelectMode) {
+                                if (selectedIndices.isNotEmpty()) {
                                     onSelectionChange(index)
                                 } else {
                                     onSongClick(index)
