@@ -23,6 +23,7 @@ import com.byd.mediaplayer.data.MediaStoreHelper
 import com.byd.mediaplayer.data.MusicRepository
 import com.byd.mediaplayer.data.database.AppDatabase
 import com.byd.mediaplayer.model.Lyrics
+import com.byd.mediaplayer.util.Logger
 import com.byd.mediaplayer.model.PlayMode
 import com.byd.mediaplayer.model.Song
 import com.byd.mediaplayer.player.PlayerService
@@ -35,6 +36,8 @@ import com.byd.mediaplayer.util.PreferencesManager
 import kotlinx.coroutines.*
 
 class MainActivity : ComponentActivity() {
+
+    private val TAG = "MainActivity"
 
     private var playerService: PlayerService? = null
     private var serviceBound = false
@@ -66,6 +69,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Logger.d(TAG, "MainActivity onCreate")
 
         preferencesManager = PreferencesManager(this)
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -226,6 +230,7 @@ class MainActivity : ComponentActivity() {
 
             // 更新播放状态
             launch {
+                Logger.d(TAG, "开始状态更新循环")
                 while (true) {
                     val previousSong = currentSong
                     currentSong = manager.currentSong
@@ -235,9 +240,12 @@ class MainActivity : ComponentActivity() {
                     playMode = manager.playMode
                     playlist = manager.playlist
 
+                    Logger.d(TAG, "状态更新: song=${currentSong?.title}, isPlaying=$isPlaying, playMode=$playMode")
+
                     // 歌曲变化时重新加载歌词
                     currentSong?.let { song ->
                         if (song != previousSong) {
+                            Logger.i(TAG, "歌曲变化: ${previousSong?.title} -> ${song.title}")
                             lyrics = LrcParser.parseLrc(song.path)
                         }
                     }

@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import com.byd.mediaplayer.MainActivity
 import com.byd.mediaplayer.R
+import com.byd.mediaplayer.util.Logger
 
 class PlayerService : Service() {
 
@@ -27,20 +28,34 @@ class PlayerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        Logger.d(TAG, "PlayerService onCreate")
         playerManager = PlayerManager(this)
         createNotificationChannel()
     }
 
     override fun onBind(intent: Intent?): IBinder {
+        Logger.d(TAG, "PlayerService onBind")
         return binder
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_PLAY -> playerManager.play()
-            ACTION_PAUSE -> playerManager.pause()
-            ACTION_NEXT -> playerManager.playNext()
-            ACTION_PREVIOUS -> playerManager.playPrevious()
+            ACTION_PLAY -> {
+                Logger.i(TAG, "收到播放指令")
+                playerManager.play()
+            }
+            ACTION_PAUSE -> {
+                Logger.i(TAG, "收到暂停指令")
+                playerManager.pause()
+            }
+            ACTION_NEXT -> {
+                Logger.i(TAG, "收到下一曲指令")
+                playerManager.playNext()
+            }
+            ACTION_PREVIOUS -> {
+                Logger.i(TAG, "收到上一曲指令")
+                playerManager.playPrevious()
+            }
         }
         return START_NOT_STICKY
     }
@@ -48,6 +63,7 @@ class PlayerService : Service() {
     fun getPlayerManager(): PlayerManager = playerManager
 
     fun startForegroundService() {
+        Logger.d(TAG, "启动前台服务")
         val notification = createNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
@@ -61,11 +77,13 @@ class PlayerService : Service() {
     }
 
     fun updateNotification(song: com.byd.mediaplayer.model.Song, isPlaying: Boolean) {
+        Logger.d(TAG, "更新通知: ${song.title}, isPlaying: $isPlaying")
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.notify(NOTIFICATION_ID, createNotification(song, isPlaying))
     }
 
     private fun createNotificationChannel() {
+        Logger.d(TAG, "创建通知通道")
         val channel = NotificationChannel(
             CHANNEL_ID,
             "音乐播放",
@@ -132,11 +150,13 @@ class PlayerService : Service() {
     }
 
     override fun onDestroy() {
+        Logger.d(TAG, "PlayerService onDestroy")
         playerManager.release()
         super.onDestroy()
     }
 
     companion object {
+        const val TAG = "PlayerService"
         const val CHANNEL_ID = "lf_media_player_channel"
         const val NOTIFICATION_ID = 1
 
