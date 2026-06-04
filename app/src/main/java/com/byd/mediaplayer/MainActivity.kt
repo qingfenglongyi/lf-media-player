@@ -445,6 +445,7 @@ class MainActivity : ComponentActivity() {
             },
             onClearPlaylist = {
                 playerService?.getPlayerManager()?.setPlaylist(emptyList(), 0)
+                playlist = emptyList()
             },
             onAddToPlaylist = { song ->
                 CoroutineScope(Dispatchers.IO).launch {
