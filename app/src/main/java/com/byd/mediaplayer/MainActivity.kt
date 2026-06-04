@@ -34,7 +34,9 @@ import com.byd.mediaplayer.ui.PlaylistTab
 import com.byd.mediaplayer.ui.PlayerScreen
 import com.byd.mediaplayer.util.LrcParser
 import com.byd.mediaplayer.util.PreferencesManager
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -265,15 +267,15 @@ class MainActivity : ComponentActivity() {
             val manager = service.getPlayerManager()
 
             val listener = object : PlayerManager.PlayerListener {
-                override fun onPlaybackStateChanged(song: Song?, isPlaying: Boolean) {
-                    Logger.d(TAG, "监听器收到状态变化: isPlaying=$isPlaying, song=${song?.title}")
+                override fun onPlaybackStateChanged(song: Song?, playing: Boolean) {
+                    Logger.d(TAG, "监听器收到状态变化: isPlaying=$playing, song=${song?.title}")
                     currentSong = song
-                    this@PlayerScreenWithState.isPlaying = isPlaying
+                    isPlaying = playing
                 }
 
-                override fun onPositionChanged(position: Long, duration: Long) {
-                    this@PlayerScreenWithState.currentPosition = position
-                    this@PlayerScreenWithState.duration = duration
+                override fun onPositionChanged(position: Long, len: Long) {
+                    currentPosition = position
+                    duration = len
                 }
             }
 
@@ -366,7 +368,8 @@ class MainActivity : ComponentActivity() {
             onAddSongsToPlaylist = { songs ->
                 CoroutineScope(Dispatchers.IO).launch {
                     val database = AppDatabase.getInstance(this@MainActivity)
-                    database.playlistDao().getAllPlaylists().firstOrNull()?.let { playlist ->
+                    try {
+                        val playlist = database.playlistDao().getAllPlaylists().first()
                         songs.forEachIndexed { index, song ->
                             database.playlistDao().insertPlaylistSong(
                                 com.byd.mediaplayer.model.PlaylistSong(
@@ -376,6 +379,8 @@ class MainActivity : ComponentActivity() {
                                 )
                             )
                         }
+                    } catch (e: Exception) {
+                        Logger.e(TAG, "添加歌曲到歌单失败", e)
                     }
                 }
             },
@@ -404,10 +409,9 @@ class MainActivity : ComponentActivity() {
                             database.playlistDao().removeSongFromPlaylist(playlistEntity.id, songId)
                             // 刷新歌单列表
                             val updatedSongs = database.playlistDao().getPlaylistSongs(playlistEntity.id)
-                            val songIds = updatedSongs.map { it.songId }
-                            val allSongsList = this@PlayerScreenWithState.playlist
+                            val currentPlaylist = this@PlayerScreenWithState.playlist
                             val sortedSongs = updatedSongs.sortedBy { it.position }.mapNotNull { ps ->
-                                allSongsList.find { it.id == ps.songId }
+                                currentPlaylist.find { it.id == ps.songId }
                             }
                             withContext(Dispatchers.Main) {
                                 selectedPlaylistSongs = sortedSongs
