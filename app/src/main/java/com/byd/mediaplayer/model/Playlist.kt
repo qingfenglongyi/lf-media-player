@@ -32,7 +32,8 @@ data class SongEntity(
     val album: String,
     val duration: Long,
     val path: String,
-    val lastPlayedAt: Long? = null
+    val lastPlayedAt: Long? = null,
+    val isHidden: Boolean = false
 )
 
 data class PlaylistWithSongs(

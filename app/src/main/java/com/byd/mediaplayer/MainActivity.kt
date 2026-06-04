@@ -26,6 +26,7 @@ import com.byd.mediaplayer.model.Lyrics
 import com.byd.mediaplayer.util.Logger
 import com.byd.mediaplayer.model.PlayMode
 import com.byd.mediaplayer.model.Song
+import com.byd.mediaplayer.player.PlayerManager
 import com.byd.mediaplayer.player.PlayerService
 import com.byd.mediaplayer.ui.LibraryViewState
 import com.byd.mediaplayer.ui.LibrarySortType
@@ -43,6 +44,23 @@ class MainActivity : ComponentActivity() {
     private var serviceBound = false
     private lateinit var preferencesManager: PreferencesManager
     private lateinit var audioManager: AudioManager
+
+    // 播放器状态（类级别，供 UI 使用）
+    private var _currentSong by mutableStateOf<Song?>(null)
+    private var _isPlaying by mutableStateOf(false)
+    private var _playlist by mutableStateOf<List<Song>>(emptyList())
+    private var _currentPosition by mutableLongStateOf(0L)
+    private var _duration by mutableLongStateOf(0L)
+    private var _playMode by mutableStateOf(PlayMode.LIST_LOOP)
+    private var _lyrics by mutableStateOf<Lyrics?>(null)
+    private var _volume by mutableFloatStateOf(1.0f)
+    private var _showPlaylistPanel by mutableStateOf(false)
+    private var _playlistTab by mutableStateOf(PlaylistTab.PLAYING)
+    private var _searchQuery by mutableStateOf("")
+    private var _sortType by mutableStateOf(LibrarySortType.ALL)
+    private var _playlists by mutableStateOf<List<String>>(emptyList())
+    private var _artists by mutableStateOf<List<String>>(emptyList())
+    private var _albums by mutableStateOf<List<String>>(emptyList())
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -168,6 +186,7 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun PlayerScreenWithState() {
+        // 使用remember和mutableStateOf创建响应式状态
         var currentSong by remember { mutableStateOf<Song?>(null) }
         var isPlaying by remember { mutableStateOf(false) }
         var playlist by remember { mutableStateOf<List<Song>>(emptyList()) }
@@ -228,34 +247,8 @@ class MainActivity : ComponentActivity() {
             // 保存repository引用用于搜索
             val searchRepository = repository
 
-            // 更新播放状态
-            launch {
-                Logger.d(TAG, "开始状态更新循环")
-                while (true) {
-                    val previousSong = currentSong
-                    currentSong = manager.currentSong
-                    isPlaying = manager.isPlaying
-                    currentPosition = manager.currentPosition
-                    duration = manager.duration
-                    playMode = manager.playMode
-                    playlist = manager.playlist
-
-                    Logger.d(TAG, "状态更新: song=${currentSong?.title}, isPlaying=$isPlaying, playMode=$playMode")
-
-                    // 歌曲变化时重新加载歌词
-                    currentSong?.let { song ->
-                        if (song != previousSong) {
-                            Logger.i(TAG, "歌曲变化: ${previousSong?.title} -> ${song.title}")
-                            lyrics = LrcParser.parseLrc(song.path)
-                        }
-                    }
-
-                    delay(500)
-                }
-            }
-
-            // 搜索函数
-            val searchSongs: (String) -> Unit = { query ->
+            // 保存搜索函数引用
+            searchSongsRef = { query ->
                 CoroutineScope(Dispatchers.Main).launch {
                     playlist = if (query.isBlank()) {
                         searchRepository.getAllSongs()
@@ -264,9 +257,58 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
 
-            // 保存搜索函数引用
-            searchSongsRef = searchSongs
+        // 播放器状态变化监听器
+        DisposableEffect(playerService) {
+            val service = playerService ?: return@DisposableEffect onDispose { }
+            val manager = service.getPlayerManager()
+
+            val listener = object : PlayerManager.PlayerListener {
+                override fun onPlaybackStateChanged(song: Song?, isPlaying: Boolean) {
+                    Logger.d(TAG, "监听器收到状态变化: isPlaying=$isPlaying, song=${song?.title}")
+                    currentSong = song
+                    this@PlayerScreenWithState.isPlaying = isPlaying
+                }
+
+                override fun onPositionChanged(position: Long, duration: Long) {
+                    this@PlayerScreenWithState.currentPosition = position
+                    this@PlayerScreenWithState.duration = duration
+                }
+            }
+
+            manager.addListener(listener)
+
+            onDispose {
+                manager.removeListener(listener)
+            }
+        }
+
+        // 位置轮询（用于进度条持续更新）
+        LaunchedEffect(Unit) {
+            val service = playerService ?: return@LaunchedEffect
+            val manager = service.getPlayerManager()
+
+            while (true) {
+                currentPosition = manager.currentPosition
+                duration = manager.duration
+                delay(500)
+            }
+        }
+
+        // 歌曲变化时重新加载歌词
+        LaunchedEffect(currentSong) {
+            currentSong?.let { song ->
+                Logger.i(TAG, "歌曲变化: ${song.title}, 路径: ${song.path}")
+                lyrics = LrcParser.parseLrc(this@MainActivity, song.path)
+            }
+        }
+
+        // 播放模式变化时更新状态
+        LaunchedEffect(playerService) {
+            val service = playerService ?: return@LaunchedEffect
+            val manager = service.getPlayerManager()
+            playMode = manager.playMode
         }
 
         PlayerScreen(
@@ -290,7 +332,10 @@ class MainActivity : ComponentActivity() {
                     lyrics = null // 清空歌词，下次自动加载
                 }
             },
-            onPlayModeChange = { playerService?.getPlayerManager()?.cyclePlayMode() },
+            onPlayModeChange = {
+                val newMode = playerService?.getPlayerManager()?.cyclePlayMode()
+                newMode?.let { playMode = it }
+            },
             onVolumeChange = { newVolume ->
                 volume = newVolume
                 val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
@@ -317,6 +362,73 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                 }
+            },
+            onAddSongsToPlaylist = { songs ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    val database = AppDatabase.getInstance(this@MainActivity)
+                    database.playlistDao().getAllPlaylists().firstOrNull()?.let { playlist ->
+                        songs.forEachIndexed { index, song ->
+                            database.playlistDao().insertPlaylistSong(
+                                com.byd.mediaplayer.model.PlaylistSong(
+                                    playlistId = playlist.id,
+                                    songId = song.id,
+                                    position = index
+                                )
+                            )
+                        }
+                    }
+                }
+            },
+            onAddSongsToQueue = { songs ->
+                playerService?.getPlayerManager()?.let { manager ->
+                    val currentList = manager.playlist.toMutableList()
+                    songs.forEach { song ->
+                        if (song !in currentList) {
+                            currentList.add(song)
+                        }
+                    }
+                    manager.setPlaylist(currentList, manager.currentIndex)
+                }
+            },
+            onDeleteSongsFromPlaylist = { indices ->
+                // 播放列表不支持删除歌曲，只能清空
+                Logger.w(TAG, "播放列表不支持删除单个歌曲，请使用清空功能")
+            },
+            onRemoveSongFromPlaylist = { playlistName, index ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    val database = AppDatabase.getInstance(this@MainActivity)
+                    database.playlistDao().getPlaylistByName(playlistName)?.let { playlistEntity ->
+                        val playlistSongs = database.playlistDao().getPlaylistSongs(playlistEntity.id)
+                        if (index in playlistSongs.indices) {
+                            val songId = playlistSongs[index].songId
+                            database.playlistDao().removeSongFromPlaylist(playlistEntity.id, songId)
+                            // 刷新歌单列表
+                            val updatedSongs = database.playlistDao().getPlaylistSongs(playlistEntity.id)
+                            val songIds = updatedSongs.map { it.songId }
+                            val allSongsList = this@PlayerScreenWithState.playlist
+                            val sortedSongs = updatedSongs.sortedBy { it.position }.mapNotNull { ps ->
+                                allSongsList.find { it.id == ps.songId }
+                            }
+                            withContext(Dispatchers.Main) {
+                                selectedPlaylistSongs = sortedSongs
+                            }
+                        }
+                    }
+                }
+            },
+            onDeleteSongsFromLibrary = { songIds ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    val repository = MusicRepository.getInstance(this@MainActivity)
+                    repository.hideSongs(songIds)
+                    withContext(Dispatchers.Main) {
+                        // 刷新当前列表
+                        playlist = repository.getAllSongs()
+                    }
+                    Logger.i(TAG, "已从库中隐藏 ${songIds.size} 首歌曲")
+                }
+            },
+            onClearPlaylist = {
+                playerService?.getPlayerManager()?.setPlaylist(emptyList(), 0)
             },
             onAddToPlaylist = { song ->
                 CoroutineScope(Dispatchers.IO).launch {
@@ -377,8 +489,22 @@ class MainActivity : ComponentActivity() {
             },
             onPlaylistClick = { name ->
                 selectedPlaylistName = name
-                // TODO: 从数据库加载歌单歌曲
-                selectedPlaylistSongs = emptyList()
+                // 从数据库加载歌单歌曲
+                CoroutineScope(Dispatchers.IO).launch {
+                    val database = AppDatabase.getInstance(this@MainActivity)
+                    database.playlistDao().getPlaylistByName(name)?.let { playlistEntity ->
+                        val playlistSongs = database.playlistDao().getPlaylistSongs(playlistEntity.id)
+                        val songIds = playlistSongs.map { it.songId }
+                        val songsInPlaylist = playlist.filter { it.id in songIds }.toMutableList()
+                        // 按position排序
+                        val sortedSongs = playlistSongs.sortedBy { it.position }.mapNotNull { ps ->
+                            songsInPlaylist.find { it.id == ps.songId }
+                        }
+                        withContext(Dispatchers.Main) {
+                            selectedPlaylistSongs = sortedSongs
+                        }
+                    }
+                }
                 libraryViewState = LibraryViewState.PLAYLIST_DETAIL
             },
             selectedPlaylistName = selectedPlaylistName,

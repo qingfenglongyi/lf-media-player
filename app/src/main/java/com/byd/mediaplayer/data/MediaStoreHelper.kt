@@ -6,12 +6,17 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import com.byd.mediaplayer.model.Song
+import com.byd.mediaplayer.util.Logger
 
 object MediaStoreHelper {
 
+    private const val TAG = "MediaStoreHelper"
+
     private val collection: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        Logger.d(TAG, "使用Android 10+ MediaStore API")
         MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
     } else {
+        Logger.d(TAG, "使用Legacy MediaStore API")
         MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
     }
 
@@ -25,36 +30,36 @@ object MediaStoreHelper {
     )
 
     fun querySongs(context: Context): List<Song> {
+        Logger.d(TAG, "查询所有歌曲")
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
         val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
-
         return querySongs(context, selection, null, sortOrder)
     }
 
     fun querySongsByArtist(context: Context, artist: String): List<Song> {
+        Logger.d(TAG, "按艺术家查询: $artist")
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.ARTIST} = ?"
         val selectionArgs = arrayOf(artist)
         val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
-
         return querySongs(context, selection, selectionArgs, sortOrder)
     }
 
     fun querySongsByAlbum(context: Context, album: String): List<Song> {
+        Logger.d(TAG, "按专辑查询: $album")
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.ALBUM} = ?"
         val selectionArgs = arrayOf(album)
         val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
-
         return querySongs(context, selection, selectionArgs, sortOrder)
     }
 
     fun searchSongs(context: Context, query: String): List<Song> {
+        Logger.d(TAG, "搜索歌曲: $query")
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND (" +
                 "${MediaStore.Audio.Media.TITLE} LIKE ? OR " +
                 "${MediaStore.Audio.Media.ARTIST} LIKE ? OR " +
                 "${MediaStore.Audio.Media.ALBUM} LIKE ?)"
         val selectionArgs = arrayOf("%$query%", "%$query%", "%$query%")
         val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
-
         return querySongs(context, selection, selectionArgs, sortOrder)
     }
 
@@ -65,6 +70,7 @@ object MediaStoreHelper {
         sortOrder: String
     ): List<Song> {
         val songs = mutableListOf<Song>()
+        Logger.d(TAG, "执行MediaStore查询, selection: $selection")
 
         context.contentResolver.query(
             collection,
@@ -73,6 +79,7 @@ object MediaStoreHelper {
             selectionArgs,
             sortOrder
         )?.use { cursor ->
+            Logger.d(TAG, "查询返回 ${cursor.count} 行")
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
             val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
@@ -93,6 +100,8 @@ object MediaStoreHelper {
                     id
                 )
 
+                Logger.v(TAG, "解析歌曲: id=$id, title=$title, path=$path")
+
                 songs.add(
                     Song(
                         id = id,
@@ -105,12 +114,14 @@ object MediaStoreHelper {
                     )
                 )
             }
-        }
+        } ?: Logger.w(TAG, "查询cursor为null")
 
+        Logger.i(TAG, "共解析 ${songs.size} 首歌曲")
         return songs
     }
 
     fun getAllArtists(context: Context): List<String> {
+        Logger.d(TAG, "获取所有艺术家")
         val artists = mutableSetOf<String>()
 
         val projection = arrayOf(MediaStore.Audio.Media.ARTIST)
@@ -130,10 +141,12 @@ object MediaStoreHelper {
             }
         }
 
+        Logger.i(TAG, "共 ${artists.size} 位艺术家")
         return artists.toList()
     }
 
     fun getAllAlbums(context: Context): List<String> {
+        Logger.d(TAG, "获取所有专辑")
         val albums = mutableSetOf<String>()
 
         val projection = arrayOf(MediaStore.Audio.Media.ALBUM)
@@ -153,6 +166,7 @@ object MediaStoreHelper {
             }
         }
 
+        Logger.i(TAG, "共 ${albums.size} 张专辑")
         return albums.toList()
     }
 }

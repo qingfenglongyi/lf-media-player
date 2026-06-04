@@ -43,6 +43,10 @@ object Logger {
         log("DEBUG", tag, message)
     }
 
+    fun v(tag: String, message: String) {
+        log("VERBOSE", tag, message)
+    }
+
     fun i(tag: String, message: String) {
         log("INFO", tag, message)
     }
