@@ -65,7 +65,13 @@ class PlayerManager(context: Context) {
     fun setPlaylist(songs: List<Song>, startIndex: Int = 0) {
         Logger.i(TAG, "设置播放列表: ${songs.size}首歌曲, startIndex=$startIndex")
         playlist = songs
-        currentIndex = startIndex
+        if (songs.isEmpty()) {
+            currentIndex = -1
+            exoPlayer.stop()
+            notifyListeners()
+            return
+        }
+        currentIndex = startIndex.coerceIn(0, songs.size - 1)
         prepareAndPlay()
     }
 

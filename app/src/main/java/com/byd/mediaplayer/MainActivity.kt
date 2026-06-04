@@ -359,13 +359,10 @@ class MainActivity : ComponentActivity() {
             },
             onDeletePlaylist = { name ->
                 CoroutineScope(Dispatchers.IO).launch {
-                    AppDatabase.getInstance(this@MainActivity).playlistDao()
-                        .getAllPlaylists().collect { list ->
-                            list.find { it.name == name }?.let {
-                                AppDatabase.getInstance(this@MainActivity).playlistDao()
-                                    .deletePlaylist(it)
-                            }
-                        }
+                    val database = AppDatabase.getInstance(this@MainActivity)
+                    database.playlistDao().getAllPlaylists().first().find { it.name == name }?.let {
+                        database.playlistDao().deletePlaylist(it)
+                    }
                 }
             },
             onAddSongsToPlaylist = { songs ->

@@ -90,6 +90,20 @@ fun PlaylistPanel(
     var songToAdd by remember { mutableStateOf<Song?>(null) }
     var viewState by remember { mutableStateOf(LibraryViewState.SONGS) }
 
+    // 当外部传入的selectedArtist变化时，自动切换到对应视图
+    LaunchedEffect(selectedArtist) {
+        if (selectedArtist != null) {
+            viewState = LibraryViewState.ARTIST_SONGS
+        }
+    }
+
+    // 当外部传入的selectedAlbum变化时，自动切换到对应视图
+    LaunchedEffect(selectedAlbum) {
+        if (selectedAlbum != null) {
+            viewState = LibraryViewState.ALBUM_SONGS
+        }
+    }
+
     // 多选模式状态
     var isMultiSelectMode by remember { mutableStateOf(false) }
     var selectedSongIndices by remember { mutableStateOf<Set<Int>>(emptySet()) }
@@ -654,7 +668,7 @@ private fun LibrarySongsContent(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "选择/取消选择",
+                    text = if (isMultiSelectMode) "取消选择" else "选择",
                     color = Color(0xFF00D4AA),
                     fontSize = 14.sp,
                     modifier = Modifier.clickable { onToggleMultiSelect() }
@@ -1076,7 +1090,7 @@ private fun PlayingListContent(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "选择/取消选择",
+                    text = if (isMultiSelectMode) "取消选择" else "选择",
                     color = Color(0xFF00D4AA),
                     fontSize = 14.sp,
                     modifier = Modifier.clickable { onToggleMultiSelect() }
@@ -1326,7 +1340,7 @@ private fun MultiSelectPlaylistContent(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "选择/取消选择",
+                    text = if (isMultiSelectMode) "取消选择" else "选择",
                     color = Color(0xFF00D4AA),
                     fontSize = 14.sp,
                     modifier = Modifier.clickable { onToggleMultiSelect() }
@@ -1553,7 +1567,7 @@ private fun LibraryMultiSelectContent(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "选择/取消选择",
+                    text = if (isMultiSelectMode) "取消选择" else "选择",
                     color = Color(0xFF00D4AA),
                     fontSize = 14.sp,
                     modifier = Modifier.clickable { onToggleMultiSelect() }

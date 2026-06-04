@@ -35,19 +35,28 @@ data class Lyrics(
 
             var parsedCount = 0
             for (line in lrcLines) {
-                when {
-                    line.startsWith("[offset:", ignoreCase = true) -> {
-                        offset = parseTimeTag(line.removePrefix("[offset:").removeSuffix("]").trim()) ?: 0L
-                        Logger.v(TAG, "解析到offset: $offset")
-                    }
-                    line.startsWith("[", ignoreCase = true) && line.length > 10 -> {
-                        val timeTag = line.substringBefore("]")
-                        val text = line.substringAfter("]").trim()
-                        if (text.isNotEmpty()) {
-                            parseTimeTag(timeTag)?.let { time ->
-                                lines.add(LyricLine(time + offset, text))
-                                parsedCount++
-                            }
+                // 跳过空白行
+                if (line.isBlank()) continue
+
+                // 处理offset标签
+                if (line.startsWith("[offset:", ignoreCase = true)) {
+                    offset = parseTimeTag(line.removePrefix("[offset:").removeSuffix("]").trim()) ?: 0L
+                    Logger.v(TAG, "解析到offset: $offset")
+                    continue
+                }
+
+                // 提取时间标签（时间标签格式：[mm:ss.xx] 或 [mm:ss:xx] 或只有 [mm:ss]）
+                val timeTagStart = line.indexOf('[')
+                val timeTagEnd = line.lastIndexOf(']')
+
+                if (timeTagStart >= 0 && timeTagEnd > timeTagStart) {
+                    val timeTag = line.substring(timeTagStart + 1, timeTagEnd)
+                    val text = line.substring(timeTagEnd + 1).trim()
+
+                    if (timeTag.isNotEmpty() && text.isNotEmpty()) {
+                        parseTimeTag("[$timeTag]")?.let { time ->
+                            lines.add(LyricLine(time + offset, text))
+                            parsedCount++
                         }
                     }
                 }
