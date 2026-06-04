@@ -165,7 +165,8 @@ fun PlaylistPanel(
                                     onAddToPlaylist = { songs ->
                                         songToAdd = songs.firstOrNull()
                                         showAddToPlaylistDialog = true
-                                    }
+                                    },
+                                    isMultiSelectMode = isMultiSelectMode
                                 )
                             } else {
                                 PlayingListContent(
@@ -197,7 +198,8 @@ fun PlaylistPanel(
                                     onAddToPlaylist = { songs ->
                                         songToAdd = songs.firstOrNull()
                                         showAddToPlaylistDialog = true
-                                    }
+                                    },
+                                    isMultiSelectMode = isMultiSelectMode
                                 )
                             }
                         }
@@ -257,7 +259,8 @@ fun PlaylistPanel(
                                             onDeleteSongsFromLibrary?.invoke(ids)
                                             libraryMultiSelectMode = false
                                             librarySelectedIndices = emptySet()
-                                        }
+                                        },
+                                        isMultiSelectMode = libraryMultiSelectMode
                                     )
                                 } else {
                                     LibraryContent(
@@ -1033,7 +1036,8 @@ private fun PlayingListContent(
     onToggleMultiSelect: () -> Unit,
     onClearPlaylist: (() -> Unit)?,
     onDeleteSelected: (Set<Int>) -> Unit,
-    onAddToPlaylist: (List<Song>) -> Unit
+    onAddToPlaylist: (List<Song>) -> Unit,
+    isMultiSelectMode: Boolean = false
 ) {
     var showDropdownMenu by remember { mutableStateOf(false) }
 
@@ -1283,7 +1287,8 @@ private fun MultiSelectPlaylistContent(
     onToggleMultiSelect: () -> Unit,
     onClearPlaylist: (() -> Unit)?,
     onDeleteSelected: (Set<Int>) -> Unit,
-    onAddToPlaylist: (List<Song>) -> Unit
+    onAddToPlaylist: (List<Song>) -> Unit,
+    isMultiSelectMode: Boolean = false
 ) {
     var showDropdownMenu by remember { mutableStateOf(false) }
 
@@ -1500,7 +1505,8 @@ private fun LibraryMultiSelectContent(
     onToggleMultiSelect: () -> Unit,
     onAddToQueue: (Set<Int>) -> Unit,
     onAddToPlaylist: (Set<Int>) -> Unit,
-    onDeleteFromLibrary: (Set<Int>) -> Unit
+    onDeleteFromLibrary: (Set<Int>) -> Unit,
+    isMultiSelectMode: Boolean = false
 ) {
     var showDropdownMenu by remember { mutableStateOf(false) }
 
