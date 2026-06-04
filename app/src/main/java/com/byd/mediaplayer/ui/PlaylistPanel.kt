@@ -565,7 +565,8 @@ private fun LibraryContent(
                         },
                         onDeleteFromLibrary = { indices ->
                             onDeleteFromLibrary?.invoke(indices)
-                        }
+                        },
+                        isMultiSelectMode = libraryMultiSelectMode
                     )
                 }
                 LibraryViewState.ARTIST_LIST -> {
@@ -615,7 +616,8 @@ private fun LibrarySongsContent(
     onToggleMultiSelect: () -> Unit,
     onAddToQueue: (Set<Int>) -> Unit,
     onAddToPlaylist: (Set<Int>) -> Unit,
-    onDeleteFromLibrary: (Set<Int>) -> Unit
+    onDeleteFromLibrary: (Set<Int>) -> Unit,
+    isMultiSelectMode: Boolean = false
 ) {
     var showDropdownMenu by remember { mutableStateOf(false) }
 
