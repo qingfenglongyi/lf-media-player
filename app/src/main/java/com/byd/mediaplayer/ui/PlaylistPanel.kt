@@ -566,7 +566,7 @@ private fun LibraryContent(
                         onDeleteFromLibrary = { indices ->
                             onDeleteFromLibrary?.invoke(indices)
                         },
-                        isMultiSelectMode = libraryMultiSelectMode
+                        isMultiSelectMode = isMultiSelectMode
                     )
                 }
                 LibraryViewState.ARTIST_LIST -> {
