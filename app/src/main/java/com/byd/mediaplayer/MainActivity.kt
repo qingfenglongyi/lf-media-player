@@ -164,6 +164,13 @@ class MainActivity : ComponentActivity() {
         service.startForegroundService()
 
         val playerManager = service.getPlayerManager()
+
+        // 如果已经有播放列表，不重新设置（避免切换应用后从头播放）
+        if (playerManager.playlist.isNotEmpty()) {
+            Logger.d(TAG, "播放列表已存在，不重新设置")
+            return
+        }
+
         val repository = MusicRepository.getInstance(this)
 
         CoroutineScope(Dispatchers.Main).launch {
@@ -290,10 +297,9 @@ class MainActivity : ComponentActivity() {
         }
 
         // 位置轮询（用于进度条持续更新）
-        LaunchedEffect(Unit) {
-            val service = playerService ?: return@LaunchedEffect
-            val manager = service.getPlayerManager()
-
+        val playerManagerForPosition = playerService?.getPlayerManager()
+        LaunchedEffect(playerManagerForPosition) {
+            val manager = playerManagerForPosition ?: return@LaunchedEffect
             while (true) {
                 currentPosition = manager.currentPosition
                 duration = manager.duration
