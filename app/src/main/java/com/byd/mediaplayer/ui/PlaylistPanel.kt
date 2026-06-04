@@ -109,6 +109,10 @@ fun PlaylistPanel(
     var selectedSongIndices by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var showMenu by remember { mutableStateOf(false) }
 
+    // Library多选模式状态
+    var libraryMultiSelectMode by remember { mutableStateOf(false) }
+    var librarySelectedIndices by remember { mutableStateOf<Set<Int>>(emptySet()) }
+
     AnimatedVisibility(
         visible = visible,
         enter = slideInHorizontally { it },
@@ -138,10 +142,6 @@ fun PlaylistPanel(
                         onTabChange(PlaylistTab.LIBRARY)
                     }
                 }
-
-                // 多选模式状态（库页面）
-    var libraryMultiSelectMode by remember { mutableStateOf(false) }
-    var librarySelectedIndices by remember { mutableStateOf<Set<Int>>(emptySet()) }
 
     // 内容区域
                 Box(modifier = Modifier.weight(1f)) {
