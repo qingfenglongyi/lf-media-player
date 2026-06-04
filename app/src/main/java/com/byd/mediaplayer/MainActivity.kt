@@ -34,9 +34,12 @@ import com.byd.mediaplayer.ui.PlaylistTab
 import com.byd.mediaplayer.ui.PlayerScreen
 import com.byd.mediaplayer.util.LrcParser
 import com.byd.mediaplayer.util.PreferencesManager
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -369,7 +372,7 @@ class MainActivity : ComponentActivity() {
                 CoroutineScope(Dispatchers.IO).launch {
                     val database = AppDatabase.getInstance(this@MainActivity)
                     try {
-                        val playlist = database.playlistDao().getAllPlaylists().first()
+                        val playlist: com.byd.mediaplayer.model.Playlist = database.playlistDao().getAllPlaylists().first()
                         songs.forEachIndexed { index, song ->
                             database.playlistDao().insertPlaylistSong(
                                 com.byd.mediaplayer.model.PlaylistSong(
@@ -400,6 +403,7 @@ class MainActivity : ComponentActivity() {
                 Logger.w(TAG, "播放列表不支持删除单个歌曲，请使用清空功能")
             },
             onRemoveSongFromPlaylist = { playlistName, index ->
+                val currentPlaylistRef = playlist // 在lambda外部捕获
                 CoroutineScope(Dispatchers.IO).launch {
                     val database = AppDatabase.getInstance(this@MainActivity)
                     database.playlistDao().getPlaylistByName(playlistName)?.let { playlistEntity ->
@@ -409,9 +413,8 @@ class MainActivity : ComponentActivity() {
                             database.playlistDao().removeSongFromPlaylist(playlistEntity.id, songId)
                             // 刷新歌单列表
                             val updatedSongs = database.playlistDao().getPlaylistSongs(playlistEntity.id)
-                            val currentPlaylist = this@PlayerScreenWithState.playlist
                             val sortedSongs = updatedSongs.sortedBy { it.position }.mapNotNull { ps ->
-                                currentPlaylist.find { it.id == ps.songId }
+                                currentPlaylistRef.find { it.id == ps.songId }
                             }
                             withContext(Dispatchers.Main) {
                                 selectedPlaylistSongs = sortedSongs
