@@ -588,7 +588,10 @@ private fun LibraryContent(
                         artistName = selectedArtist ?: "",
                         songs = songs.filter { it.artist == selectedArtist },
                         onSongClick = onSongClick,
-                        onBack = onBackFromArtist
+                        onBack = {
+                            onBackFromArtist?.invoke()
+                            viewState = LibraryViewState.SONGS
+                        }
                     )
                 }
                 LibraryViewState.ALBUM_SONGS -> {
@@ -596,7 +599,10 @@ private fun LibraryContent(
                         albumName = selectedAlbum ?: "",
                         songs = songs.filter { it.album == selectedAlbum },
                         onSongClick = onSongClick,
-                        onBack = onBackFromAlbum
+                        onBack = {
+                            onBackFromAlbum?.invoke()
+                            viewState = LibraryViewState.SONGS
+                        }
                     )
                 }
                 LibraryViewState.PLAYLIST_DETAIL -> {
