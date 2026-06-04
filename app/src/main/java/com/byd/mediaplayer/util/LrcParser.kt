@@ -176,22 +176,45 @@ object LrcParser {
     private fun parseFile(file: File): Lyrics? {
         return try {
             Logger.d(TAG, "解析歌词文件: ${file.absolutePath}")
-            val content = file.readText(Charsets.UTF_8)
-            Logger.d(TAG, "文件大小: ${content.length} 字符")
-            val lyrics = Lyrics.parse(content)
-            Logger.i(TAG, "歌词解析成功，行数: ${lyrics?.lines?.size ?: 0}")
-            lyrics
-        } catch (e: Exception) {
-            Logger.e(TAG, "解析歌词文件失败(UTF-8): ${file.absolutePath}", e)
-            try {
-                // 尝试 GBK 编码
-                Logger.d(TAG, "尝试GBK编码: ${file.absolutePath}")
-                val content = file.readBytes().toString(Charset.forName("GBK"))
-                Lyrics.parse(content)
-            } catch (e2: Exception) {
-                Logger.e(TAG, "解析歌词文件失败(GBK): ${file.absolutePath}", e2)
+            // 尝试 UTF-8
+            var content = try {
+                file.readText(Charsets.UTF_8)
+            } catch (e: Exception) {
                 null
             }
+
+            // 如果 UTF-8 失败或内容看起来像乱码，尝试 GBK
+            if (content == null || content.contains('?')) {
+                Logger.d(TAG, "UTF-8 解析失败或包含乱码，尝试 GBK")
+                content = try {
+                    String(file.readBytes(), Charset.forName("GBK"))
+                } catch (e: Exception) {
+                    null
+                }
+            }
+
+            // 如果 GBK 也失败，尝试 ISO-8859-1
+            if (content == null || content.contains('?')) {
+                Logger.d(TAG, "GBK 解析失败，尝试 ISO-8859-1")
+                content = try {
+                    String(file.readBytes(), Charsets.ISO_8859_1)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+
+            if (content != null) {
+                Logger.d(TAG, "文件内容长度: ${content.length} 字符")
+                val lyrics = Lyrics.parse(content)
+                Logger.i(TAG, "歌词解析成功，行数: ${lyrics?.lines?.size ?: 0}")
+                lyrics
+            } else {
+                Logger.e(TAG, "所有编码尝试失败")
+                null
+            }
+        } catch (e: Exception) {
+            Logger.e(TAG, "解析歌词文件失败: ${file.absolutePath}", e)
+            null
         }
     }
 
