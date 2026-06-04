@@ -372,7 +372,7 @@ class MainActivity : ComponentActivity() {
                 CoroutineScope(Dispatchers.IO).launch {
                     val database = AppDatabase.getInstance(this@MainActivity)
                     try {
-                        val playlist: com.byd.mediaplayer.model.Playlist = database.playlistDao().getAllPlaylists().first()
+                        val playlist: com.byd.mediaplayer.model.Playlist = database.playlistDao().getAllPlaylists().first().first()
                         songs.forEachIndexed { index, song ->
                             database.playlistDao().insertPlaylistSong(
                                 com.byd.mediaplayer.model.PlaylistSong(
