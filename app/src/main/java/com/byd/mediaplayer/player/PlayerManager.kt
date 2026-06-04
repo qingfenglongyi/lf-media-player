@@ -142,6 +142,37 @@ class PlayerManager(context: Context) {
         playMode = mode
     }
 
+    fun removeFromPlaylist(indices: Set<Int>) {
+        if (indices.isEmpty()) return
+        Logger.i(TAG, "从播放列表删除: $indices")
+
+        val sortedIndices = indices.sortedDescending()
+        val mutablePlaylist = playlist.toMutableList()
+        var newCurrentIndex = currentIndex
+
+        for (index in sortedIndices) {
+            if (index in mutablePlaylist.indices) {
+                mutablePlaylist.removeAt(index)
+                // 调整当前播放索引
+                when {
+                    index < newCurrentIndex -> newCurrentIndex--
+                    index == newCurrentIndex -> {
+                        // 如果删除的是当前播放的歌曲，需要重新计算索引
+                        newCurrentIndex = minOf(newCurrentIndex, mutablePlaylist.size - 1)
+                    }
+                }
+            }
+        }
+
+        if (mutablePlaylist.isEmpty()) {
+            setPlaylist(emptyList(), 0)
+        } else {
+            playlist = mutablePlaylist
+            currentIndex = newCurrentIndex.coerceIn(0, maxOf(0, mutablePlaylist.size - 1))
+            notifyListeners()
+        }
+    }
+
     fun cyclePlayMode(): PlayMode {
         val oldMode = playMode
         playMode = when (playMode) {

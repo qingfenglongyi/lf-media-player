@@ -402,8 +402,8 @@ class MainActivity : ComponentActivity() {
                 }
             },
             onDeleteSongsFromPlaylist = { indices ->
-                // 播放列表不支持删除歌曲，只能清空
-                Logger.w(TAG, "播放列表不支持删除单个歌曲，请使用清空功能")
+                playerService?.getPlayerManager()?.removeFromPlaylist(indices)
+                playlist = playerService?.getPlayerManager()?.playlist ?: emptyList()
             },
             onRemoveSongFromPlaylist = { playlistName, index ->
                 val currentPlaylistRef = playlist // 在lambda外部捕获
