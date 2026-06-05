@@ -40,3 +40,11 @@ data class PlaylistWithSongs(
     val playlist: Playlist,
     val songs: List<Song>
 )
+
+@Entity(tableName = "config")
+data class Config(
+    @PrimaryKey
+    val key: String,
+    val value: String,
+    val updatedAt: Long = System.currentTimeMillis()
+)
