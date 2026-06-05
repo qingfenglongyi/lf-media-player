@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -20,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import com.byd.mediaplayer.model.Lyrics
 import com.byd.mediaplayer.model.PlayMode
 import com.byd.mediaplayer.model.Song
+import kotlinx.coroutines.delay
 
 enum class CenterView {
     VINYL,  // 转盘

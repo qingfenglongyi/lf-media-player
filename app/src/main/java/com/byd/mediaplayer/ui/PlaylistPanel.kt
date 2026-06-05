@@ -590,7 +590,7 @@ private fun LibraryContent(
                         onSongClick = onSongClick,
                         onBack = {
                             onBackFromArtist?.invoke()
-                            viewState = LibraryViewState.SONGS
+                            onViewStateChange(LibraryViewState.SONGS)
                         }
                     )
                 }
@@ -601,7 +601,7 @@ private fun LibraryContent(
                         onSongClick = onSongClick,
                         onBack = {
                             onBackFromAlbum?.invoke()
-                            viewState = LibraryViewState.SONGS
+                            onViewStateChange(LibraryViewState.SONGS)
                         }
                     )
                 }
