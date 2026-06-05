@@ -410,7 +410,7 @@ class MainActivity : ComponentActivity() {
                 }
             },
             onDeleteSongsFromPlaylist = { indices ->
-                playerService?.getPlayerManager()?.removeFromPlaylist(indices)
+                playerService?.getPlayerManager()?.removeFromPlaylist(indices.toSet())
                 playlist = playerService?.getPlayerManager()?.playlist ?: emptyList()
             },
             onRemoveSongFromPlaylist = { playlistName, index ->
