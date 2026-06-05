@@ -23,7 +23,8 @@ class PlayerManager(context: Context) {
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) {
-                    Logger.d(TAG, "播放结束")
+                    Logger.d(TAG, "播放结束，准备播放下一首")
+                    playNext()
                 }
             }
         })
