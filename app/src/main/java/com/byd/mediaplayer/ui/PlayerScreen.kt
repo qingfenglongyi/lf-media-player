@@ -33,6 +33,7 @@ fun PlayerScreen(
     currentSong: Song?,
     isPlaying: Boolean,
     playlist: List<Song>,
+    librarySongs: List<Song>,
     currentPosition: Long,
     duration: Long,
     playMode: PlayMode,
@@ -183,7 +184,7 @@ fun PlayerScreen(
         PlaylistPanel(
             visible = showPlaylistPanel,
             currentPlaylist = playlist,
-            allSongs = playlist,
+            allSongs = librarySongs,
             playlists = emptyList(),
             currentTab = playlistTab,
             currentSongIndex = playlist.indexOf(currentSong),

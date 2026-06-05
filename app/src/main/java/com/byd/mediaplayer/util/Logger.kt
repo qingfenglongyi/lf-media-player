@@ -16,13 +16,13 @@ object Logger {
 
     fun init(context: Context, enabled: Boolean = false) {
         isEnabled = enabled
+        // 使用 /sdcard/documents/logs 目录
+        val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+        logDir = File(documentsDir, "logs")
+        if (!logDir!!.exists()) {
+            logDir!!.mkdirs()
+        }
         if (isEnabled) {
-            // 使用 /sdcard/documents/logs 目录
-            val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-            logDir = File(documentsDir, "logs")
-            if (!logDir!!.exists()) {
-                logDir!!.mkdirs()
-            }
             log("INFO", "Logger", "日志目录: ${logDir?.absolutePath}")
         }
     }

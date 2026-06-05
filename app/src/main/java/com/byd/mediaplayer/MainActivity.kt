@@ -204,6 +204,7 @@ class MainActivity : ComponentActivity() {
         var currentSong by remember { mutableStateOf<Song?>(null) }
         var isPlaying by remember { mutableStateOf(false) }
         var playlist by remember { mutableStateOf<List<Song>>(emptyList()) }
+        var librarySongs by remember { mutableStateOf<List<Song>>(emptyList()) }
         var currentPosition by remember { mutableLongStateOf(0L) }
         var duration by remember { mutableLongStateOf(0L) }
         var playMode by remember { mutableStateOf(PlayMode.LIST_LOOP) }
@@ -233,8 +234,11 @@ class MainActivity : ComponentActivity() {
             val manager = service.getPlayerManager()
             val repository = MusicRepository.getInstance(this@MainActivity)
 
-            // 加载歌曲
-            playlist = repository.getAllSongs()
+            // 加载歌曲到歌曲库
+            val allSongs = repository.getAllSongs()
+            librarySongs = allSongs
+            // 播放列表初始与歌曲库相同
+            playlist = allSongs
 
             // 加载艺术家和专辑列表
             artists = MediaStoreHelper.getAllArtists(this@MainActivity)
@@ -328,6 +332,7 @@ class MainActivity : ComponentActivity() {
             currentSong = currentSong,
             isPlaying = isPlaying,
             playlist = playlist,
+            librarySongs = librarySongs,
             currentPosition = currentPosition,
             duration = duration,
             playMode = playMode,
@@ -439,15 +444,16 @@ class MainActivity : ComponentActivity() {
                     val repository = MusicRepository.getInstance(this@MainActivity)
                     repository.hideSongs(songIds)
                     withContext(Dispatchers.Main) {
-                        // 刷新当前列表
-                        playlist = repository.getAllSongs()
+                        // 刷新歌曲库
+                        librarySongs = repository.getAllSongs()
+                        playlist = librarySongs
                     }
                     Logger.i(TAG, "已从库中隐藏 ${songIds.size} 首歌曲")
                 }
             },
             onClearPlaylist = {
                 playerService?.getPlayerManager()?.setPlaylist(emptyList(), 0)
-                playlist = emptyList()
+                // 清空的是播放列表，不影响歌曲库
             },
             onAddToPlaylist = { song ->
                 CoroutineScope(Dispatchers.IO).launch {
