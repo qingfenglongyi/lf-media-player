@@ -176,38 +176,31 @@ object LrcParser {
     private fun parseFile(file: File): Lyrics? {
         return try {
             Logger.d(TAG, "解析歌词文件: ${file.absolutePath}")
-            // 尝试 UTF-8
-            var content = try {
-                file.readText(Charsets.UTF_8)
-            } catch (e: Exception) {
-                null
-            }
+            // 尝试多种编码
+            val encodings = listOf("UTF-8", "GBK", "BIG5", "ISO-8859-1")
+            var bestLyrics: Lyrics? = null
+            var bestScore = 0
 
-            // 如果 UTF-8 失败或内容看起来像乱码，尝试 GBK
-            if (content == null || content.contains('?')) {
-                Logger.d(TAG, "UTF-8 解析失败或包含乱码，尝试 GBK")
-                content = try {
-                    String(file.readBytes(), Charset.forName("GBK"))
+            for (encoding in encodings) {
+                try {
+                    val content = String(file.readBytes(), Charset.forName(encoding))
+                    val lyrics = Lyrics.parse(content)
+                    val lineCount = lyrics?.lines?.size ?: 0
+
+                    // 评分：有效行数越多越好
+                    if (lineCount > bestScore) {
+                        bestScore = lineCount
+                        bestLyrics = lyrics
+                        Logger.d(TAG, "编码 $encoding 解析出 $lineCount 行歌词")
+                    }
                 } catch (e: Exception) {
-                    null
+                    Logger.d(TAG, "编码 $encoding 解析失败: ${e.message}")
                 }
             }
 
-            // 如果 GBK 也失败，尝试 ISO-8859-1
-            if (content == null || content.contains('?')) {
-                Logger.d(TAG, "GBK 解析失败，尝试 ISO-8859-1")
-                content = try {
-                    String(file.readBytes(), Charsets.ISO_8859_1)
-                } catch (e: Exception) {
-                    null
-                }
-            }
-
-            if (content != null) {
-                Logger.d(TAG, "文件内容长度: ${content.length} 字符")
-                val lyrics = Lyrics.parse(content)
-                Logger.i(TAG, "歌词解析成功，行数: ${lyrics?.lines?.size ?: 0}")
-                lyrics
+            if (bestLyrics != null && bestScore > 0) {
+                Logger.i(TAG, "歌词解析成功，使用最佳编码，有效行数: $bestScore")
+                bestLyrics
             } else {
                 Logger.e(TAG, "所有编码尝试失败")
                 null
