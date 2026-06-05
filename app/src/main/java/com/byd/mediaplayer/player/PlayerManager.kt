@@ -217,7 +217,7 @@ class PlayerManager(context: Context) {
         exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
         exoPlayer.play()
-        notifyListeners()
+        // 不在这里调用notifyListeners()，由onIsPlayingChanged回调处理
     }
 
     fun release() {
