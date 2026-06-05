@@ -1,6 +1,7 @@
 package com.byd.mediaplayer.data.database
 
 import androidx.room.*
+import com.byd.mediaplayer.model.Config
 import com.byd.mediaplayer.model.Playlist
 import com.byd.mediaplayer.model.PlaylistSong
 import com.byd.mediaplayer.model.SongEntity
@@ -84,4 +85,16 @@ interface SongDao {
 
     @Query("UPDATE songs SET isHidden = 0 WHERE id = :id")
     suspend fun unhideSong(id: Long)
+}
+
+@Dao
+interface ConfigDao {
+    @Query("SELECT * FROM config WHERE `key` = :key")
+    suspend fun getConfig(key: String): Config?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertConfig(config: Config)
+
+    @Query("DELETE FROM config WHERE `key` = :key")
+    suspend fun deleteConfig(key: String)
 }

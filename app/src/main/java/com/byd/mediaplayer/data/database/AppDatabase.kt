@@ -4,19 +4,21 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.byd.mediaplayer.model.Config
 import com.byd.mediaplayer.model.Playlist
 import com.byd.mediaplayer.model.PlaylistSong
 import com.byd.mediaplayer.model.SongEntity
 
 @Database(
-    entities = [Playlist::class, PlaylistSong::class, SongEntity::class],
-    version = 1,
+    entities = [Playlist::class, PlaylistSong::class, SongEntity::class, Config::class],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun playlistDao(): PlaylistDao
     abstract fun songDao(): SongDao
+    abstract fun configDao(): ConfigDao
 
     companion object {
         @Volatile
