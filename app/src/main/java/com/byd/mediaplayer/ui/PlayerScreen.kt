@@ -90,18 +90,12 @@ fun PlayerScreen(
                 .padding(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 歌曲信息
-            Text(
-                text = buildString {
-                    append(currentSong?.title ?: "未选择歌曲")
-                    append(" - ")
-                    append(currentSong?.artist ?: "比亚迪音乐播放器")
-                },
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            // 歌曲信息（当标题过长时自动滚动）
+            val songTitle = currentSong?.title ?: "未选择歌曲"
+            val songArtist = currentSong?.artist ?: "比亚迪音乐播放器"
+            val songInfo = "$songTitle - $songArtist"
+            AutoScrollingText(
+                text = songInfo,
                 modifier = Modifier.padding(vertical = 10.dp)
             )
 
@@ -365,4 +359,69 @@ private fun formatTime(time: Long): String {
     val seconds = (time / 1000) % 60
     val minutes = (time / 1000) / 60
     return "%02d:%02d".format(minutes, seconds)
+}
+
+@Composable
+private fun AutoScrollingText(
+    text: String,
+    modifier: Modifier = Modifier,
+    scrollDelayMs: Long = 3000L,
+    scrollSpeed: Float = 50f
+) {
+    var textWidth by remember { mutableFloatStateOf(0f) }
+    var containerWidth by remember { mutableFloatStateOf(0f) }
+    var isScrolling by remember { mutableStateOf(false) }
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var shouldScroll by remember { mutableStateOf(false) }
+
+    LaunchedEffect(text, containerWidth, textWidth) {
+        shouldScroll = textWidth > containerWidth
+        if (!shouldScroll) {
+            offsetX = 0f
+            isScrolling = false
+        }
+    }
+
+    LaunchedEffect(shouldScroll, isScrolling) {
+        if (!shouldScroll || !isScrolling) return@LaunchedEffect
+        while (isScrolling) {
+            delay(50)
+            offsetX -= scrollSpeed / 50f
+            val minOffset = -(textWidth - containerWidth)
+            if (offsetX <= minOffset) {
+                delay(scrollDelayMs)
+                offsetX = containerWidth
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                containerWidth = constraints.maxWidth.toFloat()
+                textWidth = placeable.width.toFloat()
+                layout(placeable.width, placeable.height) {
+                    placeable.place(offsetX.toInt(), 0)
+                }
+            }
+    ) {
+        Text(
+            text = text,
+            color = Color.White,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
+        )
+    }
+
+    LaunchedEffect(Unit) {
+        // 检测是否需要滚动
+        delay(100)
+        if (textWidth > containerWidth && !isScrolling) {
+            delay(scrollDelayMs)
+            isScrolling = true
+        }
+    }
 }
