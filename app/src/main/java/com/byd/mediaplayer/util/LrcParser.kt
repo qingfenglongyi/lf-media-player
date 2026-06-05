@@ -176,7 +176,7 @@ object LrcParser {
     private fun parseFile(file: File): Lyrics? {
         return try {
             Logger.d(TAG, "解析歌词文件: ${file.absolutePath}")
-            // 尝试多种编码，优先级从高到低
+            // 尝试多种编码
             val encodings = listOf("UTF-8", "GB18030", "GBK", "BIG5", "ISO-8859-1")
             var bestLyrics: Lyrics? = null
             var bestScore = -1
@@ -188,15 +188,24 @@ object LrcParser {
                     val lyrics = Lyrics.parse(content)
                     val lineCount = lyrics?.lines?.size ?: 0
 
-                    // 检查是否有乱码（�字符表示解码错误）
+                    // 检查是否有乱码
                     val hasGarbledChars = content.contains('\uFFFD')
-                    val validCharRatio = content.toCharArray().count { it > '\u007E' || it < '\u0020' } / content.length.toFloat()
+                    // 计算CJK中文字符比例，正常中文歌词应该有较高的汉字比例
+                    val chineseCharCount = content.toCharArray().count {
+                        it in '\u4E00'..'\u9FFF' || it in '\u3400'..'\u4DBF'
+                    }
+                    val chineseRatio = chineseCharCount.toFloat() / content.length.coerceAtLeast(1)
 
-                    // 评分：有效行数越多越好，如果有效行数相同，优先选择没有乱码的编码
-                    var score = if (hasGarbledChars) -1000 else 0
+                    // 乱码判定：有替换字符OR（CJK比例太低且CJK字符数>0但不是有效中文）
+                    val isGarbled = hasGarbledChars || (chineseRatio < 0.1 && chineseCharCount > 10)
+
+                    // 评分：有乱码则大幅降低分数
+                    var score = if (isGarbled) -1000 else 0
                     score += lineCount * 10
+                    // 优先选择中文比例高的编码
+                    score += (chineseRatio * 100).toInt()
 
-                    Logger.d(TAG, "编码 $encoding 解析出 $lineCount 行歌词, 乱码=$hasGarbledChars, score=$score")
+                    Logger.d(TAG, "编码 $encoding 解析出 $lineCount 行, 乱码=$isGarbled, 汉字比例=${String.format("%.2f", chineseRatio)}, score=$score")
 
                     if (score > bestScore) {
                         bestScore = score
