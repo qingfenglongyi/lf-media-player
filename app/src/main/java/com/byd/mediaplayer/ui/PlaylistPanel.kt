@@ -453,7 +453,7 @@ fun PlaylistPanel(
                                             .padding(vertical = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(text = "📋", fontSize = 16.sp)
+                                        Text(text = "⋮", fontSize = 16.sp)
                                         Spacer(modifier = Modifier.width(12.dp))
                                         Text(text = playlistName, color = Color.White, fontSize = 14.sp)
                                     }
@@ -643,7 +643,7 @@ private fun LibrarySongsContent(
             )
             Row {
                 Text(
-                    text = "📋",
+                    text = "⋮",
                     fontSize = 20.sp,
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
@@ -1065,7 +1065,7 @@ private fun PlayingListContent(
             )
             Row {
                 Text(
-                    text = "📋",
+                    text = "⋮",
                     fontSize = 20.sp,
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
@@ -1316,7 +1316,7 @@ private fun MultiSelectPlaylistContent(
             )
             Row {
                 Text(
-                    text = "📋",
+                    text = "⋮",
                     fontSize = 20.sp,
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
@@ -1477,7 +1477,7 @@ private fun PlaylistListContent(
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "📋", fontSize = 20.sp)
+                        Text(text = "⋮", fontSize = 20.sp)
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = name,
@@ -1545,7 +1545,7 @@ private fun LibraryMultiSelectContent(
             )
             Row {
                 Text(
-                    text = "📋",
+                    text = "⋮",
                     fontSize = 20.sp,
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
