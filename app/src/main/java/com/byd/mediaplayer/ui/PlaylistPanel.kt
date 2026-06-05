@@ -242,7 +242,7 @@ fun PlaylistPanel(
                                     LibraryMultiSelectContent(
                                         songs = allSongs,
                                         selectedIndices = librarySelectedIndices,
-                                        onSongClick = { index ->
+                                        onSongToggle = { index ->
                                             if (librarySelectedIndices.contains(index)) {
                                                 librarySelectedIndices = librarySelectedIndices - index
                                             } else {
@@ -722,7 +722,7 @@ private fun LibrarySongsContent(
                                 if (isMultiSelectMode) {
                                     onSelectionChange(index)
                                 } else {
-                                    onSongClick(index)
+                                    onSongClick(song.id)
                                 }
                             }
                             .background(if (isSelected) Color(0xFF2A2A4E) else Color.Transparent)
@@ -1153,7 +1153,7 @@ private fun PlayingListContent(
                                 if (isMultiSelectMode) {
                                     onSelectionChange(index)
                                 } else {
-                                    onSongClick(index)
+                                    onSongClick(song.id)
                                 }
                             }
                             .background(
@@ -1259,7 +1259,7 @@ private fun PlaylistContent(
                             if (isMultiSelectMode && onSelectionChange != null) {
                                 Modifier.clickable { onSelectionChange(index) }
                             } else {
-                                Modifier.clickable { onSongClick(index) }
+                                Modifier.clickable { onSongClick(song.id) }
                             }
                         )
                         .background(if (isCurrentSong) Color(0xFF2A2A4E) else Color.Transparent)
@@ -1526,7 +1526,7 @@ private fun formatTime(time: Long): String {
 private fun LibraryMultiSelectContent(
     songs: List<Song>,
     selectedIndices: Set<Int>,
-    onSongClick: (Long) -> Unit,
+    onSongToggle: (Int) -> Unit,
     onToggleMultiSelect: () -> Unit,
     onAddToQueue: (Set<Int>) -> Unit,
     onAddToPlaylist: (Set<Int>) -> Unit,
@@ -1620,7 +1620,7 @@ private fun LibraryMultiSelectContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onSongClick(index) }
+                        .clickable { onSongToggle(index) }
                         .background(if (isSelected) Color(0xFF2A2A4E) else Color.Transparent)
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -1628,7 +1628,7 @@ private fun LibraryMultiSelectContent(
                     if (isMultiSelectMode) {
                         Checkbox(
                             checked = isSelected,
-                            onCheckedChange = { onSongClick(index) },
+                            onCheckedChange = { onSongToggle(index) },
                             colors = CheckboxDefaults.colors(
                                 checkedColor = Color(0xFF00D4AA),
                                 uncheckedColor = Color.Gray
