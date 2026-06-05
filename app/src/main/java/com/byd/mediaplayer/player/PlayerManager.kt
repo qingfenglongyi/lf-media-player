@@ -62,6 +62,11 @@ class PlayerManager(context: Context) {
         }
     }
 
+    fun notifyListenersForStateSync() {
+        Logger.d(TAG, "手动同步状态: currentSong=${currentSong?.title}")
+        notifyListeners()
+    }
+
     fun setPlaylist(songs: List<Song>, startIndex: Int = 0) {
         Logger.i(TAG, "设置播放列表: ${songs.size}首歌曲, startIndex=$startIndex")
         playlist = songs

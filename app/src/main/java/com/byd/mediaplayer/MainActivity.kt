@@ -168,6 +168,8 @@ class MainActivity : ComponentActivity() {
         // 如果已经有播放列表，不重新设置（避免切换应用后从头播放）
         if (playerManager.playlist.isNotEmpty()) {
             Logger.d(TAG, "播放列表已存在，不重新设置")
+            // 手动触发状态同步
+            playerManager.notifyListenersForStateSync()
             return
         }
 
