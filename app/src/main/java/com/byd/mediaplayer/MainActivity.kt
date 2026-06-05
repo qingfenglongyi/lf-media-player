@@ -387,6 +387,12 @@ class MainActivity : ComponentActivity() {
                         Logger.d(TAG, "Playlist对象创建成功: $playlist")
                         val id = db.playlistDao().insertPlaylist(playlist)
                         Logger.i(TAG, "歌单创建成功: name=$name, id=$id")
+                        // 刷新歌单列表
+                        withContext(Dispatchers.Main) {
+                            val updatedPlaylists = db.playlistDao().getAllPlaylists().first()
+                            playlists = updatedPlaylists.map { it.name }
+                            Logger.d(TAG, "歌单列表已刷新，数量: ${playlists.size}")
+                        }
                     } catch (e: Exception) {
                         Logger.e(TAG, "创建歌单失败: name=$name, error=${e.message}", e)
                     }
