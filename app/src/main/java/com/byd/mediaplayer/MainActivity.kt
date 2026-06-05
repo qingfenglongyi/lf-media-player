@@ -379,13 +379,16 @@ class MainActivity : ComponentActivity() {
             onPlaylistDismiss = { showPlaylistPanel = false },
             onCreatePlaylist = { name ->
                 CoroutineScope(Dispatchers.IO).launch {
-                    Logger.i(TAG, "创建歌单: $name")
+                    Logger.i(TAG, "创建歌单开始: name=$name")
                     try {
                         val db = AppDatabase.getInstance(this@MainActivity)
-                        db.playlistDao().insertPlaylist(com.byd.mediaplayer.model.Playlist(name = name))
-                        Logger.i(TAG, "歌单创建成功: $name")
+                        Logger.d(TAG, "数据库实例获取成功，准备插入歌单")
+                        val playlist = com.byd.mediaplayer.model.Playlist(name = name)
+                        Logger.d(TAG, "Playlist对象创建成功: $playlist")
+                        val id = db.playlistDao().insertPlaylist(playlist)
+                        Logger.i(TAG, "歌单创建成功: name=$name, id=$id")
                     } catch (e: Exception) {
-                        Logger.e(TAG, "创建歌单失败: $name", e)
+                        Logger.e(TAG, "创建歌单失败: name=$name, error=${e.message}", e)
                     }
                 }
             },
