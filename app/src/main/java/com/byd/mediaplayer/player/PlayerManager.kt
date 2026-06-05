@@ -14,6 +14,21 @@ class PlayerManager(context: Context) {
 
     private val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build()
 
+    init {
+        exoPlayer.addListener(object : Player.Listener {
+            override fun onIsPlayingChanged(playing: Boolean) {
+                Logger.d(TAG, "ExoPlayer isPlaying changed: $playing")
+                notifyListeners()
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) {
+                    Logger.d(TAG, "播放结束")
+                }
+            }
+        })
+    }
+
     var playlist: List<Song> = emptyList()
         private set
 
