@@ -152,6 +152,13 @@ fun PlaylistPanel(
                                     songs = currentPlaylist,
                                     currentIndex = currentSongIndex,
                                     selectedIndices = selectedSongIndices,
+                                    onSelectionChange = { index ->
+                                        if (selectedSongIndices.contains(index)) {
+                                            selectedSongIndices = selectedSongIndices - index
+                                        } else {
+                                            selectedSongIndices = selectedSongIndices + index
+                                        }
+                                    },
                                     onToggleMultiSelect = {
                                         isMultiSelectMode = false
                                         selectedSongIndices = emptySet()
@@ -706,7 +713,7 @@ private fun LibrarySongsContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                if (selectedIndices.isNotEmpty()) {
+                                if (isMultiSelectMode) {
                                     onSelectionChange(index)
                                 } else {
                                     onSongClick(index)
@@ -716,21 +723,24 @@ private fun LibrarySongsContent(
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 复选框
-                        Checkbox(
-                            checked = isSelected,
-                            onCheckedChange = { onSelectionChange(index) },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = Color(0xFF00D4AA),
-                                uncheckedColor = Color.Gray
+                        // 复选框（仅多选模式显示）
+                        if (isMultiSelectMode) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { onSelectionChange(index) },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = Color(0xFF00D4AA),
+                                    uncheckedColor = Color.Gray
+                                )
                             )
-                        )
-                        Text(
-                            text = "${index + 1}",
-                            color = Color.Gray,
-                            fontSize = 12.sp,
-                            modifier = Modifier.width(24.dp)
-                        )
+                        } else {
+                            Text(
+                                text = "${index + 1}",
+                                color = Color.Gray,
+                                fontSize = 12.sp,
+                                modifier = Modifier.width(24.dp)
+                            )
+                        }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = song.title,
@@ -1130,7 +1140,7 @@ private fun PlayingListContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                if (selectedIndices.isNotEmpty()) {
+                                if (isMultiSelectMode) {
                                     onSelectionChange(index)
                                 } else {
                                     onSongClick(index)
@@ -1146,21 +1156,25 @@ private fun PlayingListContent(
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 复选框
-                        Checkbox(
-                            checked = isSelected,
-                            onCheckedChange = { onSelectionChange(index) },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = Color(0xFF00D4AA),
-                                uncheckedColor = Color.Gray
+                        // 复选框（仅在多选模式显示）
+                        if (isMultiSelectMode) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { onSelectionChange(index) },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = Color(0xFF00D4AA),
+                                    uncheckedColor = Color.Gray
+                                )
                             )
-                        )
-                        Text(
-                            text = "${index + 1}",
-                            color = if (isCurrentSong) Color(0xFF00D4AA) else Color.Gray,
-                            fontSize = 12.sp,
-                            modifier = Modifier.width(24.dp)
-                        )
+                        } else {
+                            // 非多选模式显示序号
+                            Text(
+                                text = "${index + 1}",
+                                color = if (isCurrentSong) Color(0xFF00D4AA) else Color.Gray,
+                                fontSize = 12.sp,
+                                modifier = Modifier.width(24.dp)
+                            )
+                        }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = song.title,
@@ -1292,6 +1306,7 @@ private fun MultiSelectPlaylistContent(
     songs: List<Song>,
     currentIndex: Int,
     selectedIndices: Set<Int>,
+    onSelectionChange: (Int) -> Unit,
     onToggleMultiSelect: () -> Unit,
     onClearPlaylist: (() -> Unit)?,
     onDeleteSelected: (Set<Int>) -> Unit,
@@ -1372,26 +1387,14 @@ private fun MultiSelectPlaylistContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable {
-                            if (selectedIndices.contains(index)) {
-                                // 已在选中列表，移除
-                            } else {
-                                // 添加到选中列表
-                            }
-                        }
+                        .clickable { onSelectionChange(index) }
                         .background(if (isSelected) Color(0xFF2A2A4E) else Color.Transparent)
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(
                         checked = isSelected,
-                        onCheckedChange = {
-                            if (it) {
-                                // 添加到选中
-                            } else {
-                                // 从选中移除
-                            }
-                        },
+                        onCheckedChange = { onSelectionChange(index) },
                         colors = CheckboxDefaults.colors(
                             checkedColor = Color(0xFF00D4AA),
                             uncheckedColor = Color.Gray
@@ -1604,14 +1607,16 @@ private fun LibraryMultiSelectContent(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = { onSongClick(index) },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = Color(0xFF00D4AA),
-                            uncheckedColor = Color.Gray
+                    if (isMultiSelectMode) {
+                        Checkbox(
+                            checked = isSelected,
+                            onCheckedChange = { onSongClick(index) },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = Color(0xFF00D4AA),
+                                uncheckedColor = Color.Gray
+                            )
                         )
-                    )
+                    }
                     Text(
                         text = "${index + 1}",
                         color = Color.Gray,
