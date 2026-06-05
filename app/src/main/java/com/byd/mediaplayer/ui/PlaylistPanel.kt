@@ -591,10 +591,14 @@ private fun LibraryContent(
                     )
                 }
                 LibraryViewState.ARTIST_SONGS -> {
+                    val artistSongs = songs.filter { it.artist == selectedArtist }
                     ArtistSongsContent(
                         artistName = selectedArtist ?: "",
-                        songs = songs.filter { it.artist == selectedArtist },
-                        onSongClick = onSongClick,
+                        songs = artistSongs,
+                        onSongClick = { song ->
+                            val index = artistSongs.indexOf(song)
+                            if (index >= 0) onSongClick(index)
+                        },
                         onBack = {
                             onBackFromArtist?.invoke()
                             onViewStateChange(LibraryViewState.SONGS)
@@ -602,10 +606,14 @@ private fun LibraryContent(
                     )
                 }
                 LibraryViewState.ALBUM_SONGS -> {
+                    val albumSongs = songs.filter { it.album == selectedAlbum }
                     AlbumSongsContent(
                         albumName = selectedAlbum ?: "",
-                        songs = songs.filter { it.album == selectedAlbum },
-                        onSongClick = onSongClick,
+                        songs = albumSongs,
+                        onSongClick = { song ->
+                            val index = albumSongs.indexOf(song)
+                            if (index >= 0) onSongClick(index)
+                        },
                         onBack = {
                             onBackFromAlbum?.invoke()
                             onViewStateChange(LibraryViewState.SONGS)
@@ -884,7 +892,7 @@ private fun AlbumListContent(
 private fun ArtistSongsContent(
     artistName: String,
     songs: List<Song>,
-    onSongClick: (Int) -> Unit,
+    onSongClick: (Song) -> Unit,
     onBack: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -924,11 +932,11 @@ private fun ArtistSongsContent(
             }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                itemsIndexed(songs) { index, song ->
+                itemsIndexed(songs) { _, song ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSongClick(index) }
+                            .clickable { onSongClick(song) }
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -966,7 +974,7 @@ private fun ArtistSongsContent(
 private fun AlbumSongsContent(
     albumName: String,
     songs: List<Song>,
-    onSongClick: (Int) -> Unit,
+    onSongClick: (Song) -> Unit,
     onBack: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -1006,11 +1014,11 @@ private fun AlbumSongsContent(
             }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                itemsIndexed(songs) { index, song ->
+                itemsIndexed(songs) { _, song ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSongClick(index) }
+                            .clickable { onSongClick(song) }
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
