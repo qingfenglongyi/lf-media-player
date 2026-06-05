@@ -75,7 +75,7 @@ data class Lyrics(
 
         private fun parseTimeTag(tag: String): Long? {
             // 支持格式: [mm:ss.xx] 或 [mm:ss:xx]
-            val cleanTag = tag.removePrefix("[")
+            val cleanTag = tag.removePrefix("[").removeSuffix("]")
             val parts = cleanTag.split("[:.]")
             if (parts.size >= 3) {
                 val minutes = parts[0].toLongOrNull() ?: return null
