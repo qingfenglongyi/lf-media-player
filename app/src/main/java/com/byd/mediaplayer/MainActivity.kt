@@ -259,9 +259,8 @@ class MainActivity : ComponentActivity() {
 
             // 加载歌单
             val database = AppDatabase.getInstance(this@MainActivity)
-            database.playlistDao().getAllPlaylists().collect { playlistEntities ->
-                playlists = playlistEntities.map { it.name }
-            }
+            val playlistEntities = database.playlistDao().getAllPlaylists().first()
+            playlists = playlistEntities.map { it.name }
 
             if (playlist.isNotEmpty()) {
                 val startIndex = preferencesManager.lastPlayedSongId.let { lastId ->
@@ -357,10 +356,13 @@ class MainActivity : ComponentActivity() {
             onNext = { playerService?.getPlayerManager()?.playNext() },
             onPrevious = { playerService?.getPlayerManager()?.playPrevious() },
             onSeek = { playerService?.getPlayerManager()?.seekTo(it) },
-            onSongClick = { index ->
-                playerService?.getPlayerManager()?.let { manager ->
-                    manager.setPlaylist(playlist, index)
-                    lyrics = null // 清空歌词，下次自动加载
+            onSongClick = { songId ->
+                val index = playlist.indexOfFirst { it.id == songId }
+                if (index >= 0) {
+                    playerService?.getPlayerManager()?.let { manager ->
+                        manager.setPlaylist(playlist, index)
+                        lyrics = null // 清空歌词，下次自动加载
+                    }
                 }
             },
             onPlayModeChange = {
@@ -475,7 +477,7 @@ class MainActivity : ComponentActivity() {
             },
             onClearPlaylist = {
                 playerService?.getPlayerManager()?.setPlaylist(emptyList(), 0)
-                // 清空的是播放列表，不影响歌曲库
+                playlist = emptyList() // 同步更新UI状态
             },
             onAddToPlaylist = { song ->
                 CoroutineScope(Dispatchers.IO).launch {
