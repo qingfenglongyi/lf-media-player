@@ -460,7 +460,7 @@ fun PlaylistPanel(
                                             .padding(vertical = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(text = "⋮", fontSize = 16.sp)
+                                        Text(text = "操作", fontSize = 16.sp)
                                         Spacer(modifier = Modifier.width(12.dp))
                                         Text(text = playlistName, color = Color.White, fontSize = 14.sp)
                                     }
@@ -651,14 +651,18 @@ private fun LibrarySongsContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "已选择 ${selectedIndices.size} 首",
-                color = Color.White,
-                fontSize = 14.sp
-            )
+            if (selectedIndices.isNotEmpty()) {
+                Text(
+                    text = "已选择 ${selectedIndices.size} 首",
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
+            } else {
+                Spacer(modifier = Modifier)
+            }
             Row {
                 Text(
-                    text = "⋮",
+                    text = "操作",
                     fontSize = 20.sp,
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
@@ -1076,14 +1080,18 @@ private fun PlayingListContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "已选择 ${selectedIndices.size} 首",
-                color = Color.White,
-                fontSize = 14.sp
-            )
+            if (selectedIndices.isNotEmpty()) {
+                Text(
+                    text = "已选择 ${selectedIndices.size} 首",
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
+            } else {
+                Spacer(modifier = Modifier)
+            }
             Row {
                 Text(
-                    text = "⋮",
+                    text = "操作",
                     fontSize = 20.sp,
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
@@ -1332,14 +1340,18 @@ private fun MultiSelectPlaylistContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "已选择 ${selectedIndices.size} 首",
-                color = Color.White,
-                fontSize = 14.sp
-            )
+            if (selectedIndices.isNotEmpty()) {
+                Text(
+                    text = "已选择 ${selectedIndices.size} 首",
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
+            } else {
+                Spacer(modifier = Modifier)
+            }
             Row {
                 Text(
-                    text = "⋮",
+                    text = "操作",
                     fontSize = 20.sp,
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
@@ -1488,7 +1500,7 @@ private fun PlaylistListContent(
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "⋮", fontSize = 20.sp)
+                        Text(text = "操作", fontSize = 20.sp)
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = name,
@@ -1549,14 +1561,18 @@ private fun LibraryMultiSelectContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "已选择 ${selectedIndices.size} 首",
-                color = Color.White,
-                fontSize = 14.sp
-            )
+            if (selectedIndices.isNotEmpty()) {
+                Text(
+                    text = "已选择 ${selectedIndices.size} 首",
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
+            } else {
+                Spacer(modifier = Modifier)
+            }
             Row {
                 Text(
-                    text = "⋮",
+                    text = "操作",
                     fontSize = 20.sp,
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
