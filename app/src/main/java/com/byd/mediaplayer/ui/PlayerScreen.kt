@@ -400,7 +400,7 @@ private fun AutoScrollingText(
 
     Box(
         modifier = modifier
-            .fillMaxWidth()
+            .fillMaxWidth(0.667f)
             .layout { measurable, constraints ->
                 val placeable = measurable.measure(constraints)
                 containerWidth = constraints.maxWidth.toFloat()
@@ -408,7 +408,8 @@ private fun AutoScrollingText(
                 layout(placeable.width, placeable.height) {
                     placeable.place(offsetX.toInt(), 0)
                 }
-            }
+            },
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
