@@ -177,29 +177,30 @@ object LrcParser {
         return try {
             Logger.d(TAG, "解析歌词文件: ${file.absolutePath}")
             // 尝试多种编码
-            val encodings = listOf("UTF-8", "GBK", "BIG5", "ISO-8859-1")
+            val encodings = listOf("UTF-8", "GBK", "BIG5", "GB18030", "ISO-8859-1")
             var bestLyrics: Lyrics? = null
             var bestScore = 0
 
             for (encoding in encodings) {
                 try {
-                    val content = String(file.readBytes(), Charset.forName(encoding))
+                    val bytes = file.readBytes()
+                    val content = String(bytes, Charset.forName(encoding))
                     val lyrics = Lyrics.parse(content)
                     val lineCount = lyrics?.lines?.size ?: 0
+                    Logger.d(TAG, "编码 $encoding 解析出 $lineCount 行歌词, 原始字节数: ${bytes.size}")
 
-                    // 评分：有效行数越多越好
+                    // 评分：有效行数越多越好，如果有相同行数，选择GBK/BIG5等中文编码优先
                     if (lineCount > bestScore) {
                         bestScore = lineCount
                         bestLyrics = lyrics
-                        Logger.d(TAG, "编码 $encoding 解析出 $lineCount 行歌词")
                     }
                 } catch (e: Exception) {
-                    Logger.d(TAG, "编码 $encoding 解析失败: ${e.message}")
+                    Logger.d(TAG, "编码 $encoding 解析异常: ${e.message}")
                 }
             }
 
-            if (bestLyrics != null && bestScore > 0) {
-                Logger.i(TAG, "歌词解析成功，使用最佳编码，有效行数: $bestScore")
+            if (bestLyrics != null) {
+                Logger.i(TAG, "歌词解析完成，最佳编码有效行数: $bestScore")
                 bestLyrics
             } else {
                 Logger.e(TAG, "所有编码尝试失败")
