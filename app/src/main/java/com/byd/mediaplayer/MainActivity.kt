@@ -439,7 +439,7 @@ class MainActivity : ComponentActivity() {
                         val playlistSongs = database.playlistDao().getPlaylistSongs(playlistEntity.id)
                         if (index in playlistSongs.indices) {
                             val songId = playlistSongs[index].songId
-                            database.playlistDao().removeSongFromPlaylist(playlistEntity.id, songId)
+                            database.playlistDao().deletePlaylistSong(playlistEntity.id, songId)
                             // 刷新歌单列表
                             val updatedSongs = database.playlistDao().getPlaylistSongs(playlistEntity.id)
                             val sortedSongs = updatedSongs.sortedBy { it.position }.mapNotNull { ps ->
