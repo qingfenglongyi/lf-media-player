@@ -122,12 +122,17 @@ class MainActivity : ComponentActivity() {
             unbindService(serviceConnection)
             serviceBound = false
         }
-        // 保存播放状态
+        // 保存播放状态和播放列表
         playerService?.getPlayerManager()?.let { manager ->
             preferencesManager.lastPlayedPosition = manager.currentPosition
             preferencesManager.lastPlayMode = manager.playMode.name
             manager.currentSong?.let {
                 preferencesManager.lastPlayedSongId = it.id
+            }
+            // 保存播放列表到数据库
+            val repository = MusicRepository.getInstance(this)
+            CoroutineScope(Dispatchers.IO).launch {
+                repository.saveCurrentPlaylist(manager.playlist, manager.currentIndex, manager.playMode.name)
             }
         }
     }
@@ -178,16 +183,24 @@ class MainActivity : ComponentActivity() {
         CoroutineScope(Dispatchers.Main).launch {
             val songs = repository.getAllSongs()
             if (songs.isNotEmpty()) {
-                // 恢复上次的播放状态
-                val lastSongId = preferencesManager.lastPlayedSongId
-                val startIndex = songs.indexOfFirst { it.id == lastSongId }.takeIf { it >= 0 } ?: 0
-                playerManager.setPlaylist(songs, startIndex)
+                // 尝试从数据库恢复播放列表
+                val restored = repository.restoreCurrentPlaylist(songs)
+                if (restored != null) {
+                    val (restoredPlaylist, restoredIndex, playMode) = restored
+                    playerManager.setPlaylist(restoredPlaylist, restoredIndex)
+                    playerManager.setPlayMode(try { PlayMode.valueOf(playMode) } catch (e: Exception) { PlayMode.LIST_LOOP })
+                    Logger.i(TAG, "从数据库恢复播放列表成功")
+                } else {
+                    // 没有保存的播放列表，使用旧的恢复逻辑
+                    val lastSongId = preferencesManager.lastPlayedSongId
+                    val startIndex = songs.indexOfFirst { it.id == lastSongId }.takeIf { it >= 0 } ?: 0
+                    playerManager.setPlaylist(songs, startIndex)
 
-                // 恢复播放模式
-                val playMode = preferencesManager.lastPlayMode.let {
-                    try { PlayMode.valueOf(it) } catch (e: Exception) { PlayMode.LIST_LOOP }
+                    val playMode = preferencesManager.lastPlayMode.let {
+                        try { PlayMode.valueOf(it) } catch (e: Exception) { PlayMode.LIST_LOOP }
+                    }
+                    playerManager.setPlayMode(playMode)
                 }
-                playerManager.setPlayMode(playMode)
 
                 // 恢复播放位置
                 val lastPosition = preferencesManager.lastPlayedPosition
