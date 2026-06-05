@@ -176,10 +176,10 @@ object LrcParser {
     private fun parseFile(file: File): Lyrics? {
         return try {
             Logger.d(TAG, "解析歌词文件: ${file.absolutePath}")
-            // 尝试多种编码
-            val encodings = listOf("UTF-8", "GBK", "BIG5", "GB18030", "ISO-8859-1")
+            // 尝试多种编码，优先级从高到低
+            val encodings = listOf("UTF-8", "GB18030", "GBK", "BIG5", "ISO-8859-1")
             var bestLyrics: Lyrics? = null
-            var bestScore = 0
+            var bestScore = -1
 
             for (encoding in encodings) {
                 try {
@@ -187,11 +187,19 @@ object LrcParser {
                     val content = String(bytes, Charset.forName(encoding))
                     val lyrics = Lyrics.parse(content)
                     val lineCount = lyrics?.lines?.size ?: 0
-                    Logger.d(TAG, "编码 $encoding 解析出 $lineCount 行歌词, 原始字节数: ${bytes.size}")
 
-                    // 评分：有效行数越多越好，如果有相同行数，选择GBK/BIG5等中文编码优先
-                    if (lineCount > bestScore) {
-                        bestScore = lineCount
+                    // 检查是否有乱码（�字符表示解码错误）
+                    val hasGarbledChars = content.contains('\uFFFD')
+                    val validCharRatio = content.toCharArray().count { it > '\u007E' || it < '\u0020' } / content.length.toFloat()
+
+                    // 评分：有效行数越多越好，如果有效行数相同，优先选择没有乱码的编码
+                    var score = if (hasGarbledChars) -1000 else 0
+                    score += lineCount * 10
+
+                    Logger.d(TAG, "编码 $encoding 解析出 $lineCount 行歌词, 乱码=$hasGarbledChars, score=$score")
+
+                    if (score > bestScore) {
+                        bestScore = score
                         bestLyrics = lyrics
                     }
                 } catch (e: Exception) {
@@ -199,11 +207,11 @@ object LrcParser {
                 }
             }
 
-            if (bestLyrics != null) {
-                Logger.i(TAG, "歌词解析完成，最佳编码有效行数: $bestScore")
+            if (bestLyrics != null && bestScore > -1000) {
+                Logger.i(TAG, "歌词解析完成，最佳编码score=$bestScore")
                 bestLyrics
             } else {
-                Logger.e(TAG, "所有编码尝试失败")
+                Logger.e(TAG, "所有编码尝试失败或存在乱码")
                 null
             }
         } catch (e: Exception) {
