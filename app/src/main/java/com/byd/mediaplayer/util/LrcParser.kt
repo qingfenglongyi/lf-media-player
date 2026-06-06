@@ -76,26 +76,25 @@ object LrcParser {
             val musicFileName = Uri.parse(musicPath).lastPathSegment?.substringBeforeLast(".") ?: return null
             Logger.d(TAG, "SAF目录搜索，文件名: $musicFileName")
 
-            searchLrcFileInDirectory(documentFile, musicFileName)
+            searchLrcFileInDirectory(context, documentFile, musicFileName)
         } catch (e: Exception) {
             Logger.e(TAG, "SAF目录搜索异常: ${e.message}", e)
             null
         }
     }
 
-    private fun searchLrcFileInDirectory(dir: DocumentFile, musicFileName: String): Lyrics? {
+    private fun searchLrcFileInDirectory(context: Context, dir: DocumentFile, musicFileName: String): Lyrics? {
         val files: Array<DocumentFile>? = dir.listFiles() ?: return null
         if (files == null) return null
         for (file in files) {
             if (file.isDirectory) {
-                val result = searchLrcFileInDirectory(file, musicFileName)
+                val result = searchLrcFileInDirectory(context, file, musicFileName)
                 if (result != null) return result
             } else if (file.isFile) {
                 val name = file.name ?: continue
                 if (name.startsWith(musicFileName, ignoreCase = true) &&
                     (name.endsWith(".lrc", true) || name.endsWith(".LRC", true))) {
                     Logger.d(TAG, "SAF找到歌词文件: ${file.uri}")
-                    val context = file.context ?: continue
                     return parseLrcFromUri(context, file.uri)
                 }
             }

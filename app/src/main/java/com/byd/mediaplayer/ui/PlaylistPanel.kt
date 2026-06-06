@@ -600,7 +600,7 @@ private fun LibraryContent(
                     ArtistSongsContent(
                         artistName = selectedArtist ?: "",
                         songs = artistSongs,
-                        onSongClick = { song: Song -> onSongClick(song.id) },
+                        onSongClick = { id: Long -> onSongClick(id) },
                         onBack = {
                             onBackFromArtist?.invoke()
                             onViewStateChange(LibraryViewState.SONGS)
@@ -612,7 +612,7 @@ private fun LibraryContent(
                     AlbumSongsContent(
                         albumName = selectedAlbum ?: "",
                         songs = albumSongs,
-                        onSongClick = { song: Song -> onSongClick(song.id) },
+                        onSongClick = { id: Long -> onSongClick(id) },
                         onBack = {
                             onBackFromAlbum?.invoke()
                             onViewStateChange(LibraryViewState.SONGS)
