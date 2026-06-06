@@ -53,7 +53,7 @@ fun PlaylistPanel(
     currentTab: PlaylistTab,
     currentSongIndex: Int,
     onTabChange: (PlaylistTab) -> Unit,
-    onSongClick: (Long) -> Unit,
+    onSongClick: (Int) -> Unit,
     onDismiss: () -> Unit,
     onCreatePlaylist: ((String) -> Unit)? = null,
     onDeletePlaylist: ((String) -> Unit)? = null,
@@ -217,7 +217,7 @@ fun PlaylistPanel(
                                 PlaylistDetailContent(
                                     playlistName = selectedPlaylistName,
                                     songs = playlistSongs,
-                                    onSongClick = { songId -> onSongClick(songId) },
+                                    onSongClick = onSongClick,
                                     onBack = { onBackFromPlaylist?.invoke() },
                                     onDeleteSong = { index ->
                                         onRemoveSongFromPlaylist?.invoke(selectedPlaylistName, index)
@@ -495,7 +495,7 @@ private fun LibraryContent(
     onSortTypeChange: (LibrarySortType) -> Unit,
     artists: List<String>,
     albums: List<String>,
-    onSongClick: (Long) -> Unit,
+    onSongClick: (Int) -> Unit,
     onMultiSelectToggle: (() -> Unit)?,
     isMultiSelectMode: Boolean = false,
     selectedIndices: Set<Int> = emptySet(),
@@ -600,7 +600,10 @@ private fun LibraryContent(
                     ArtistSongsContent(
                         artistName = selectedArtist ?: "",
                         songs = artistSongs,
-                        onSongClick = { id: Long -> onSongClick(id) },
+                        onSongClick = { index ->
+                            val song = artistSongs.getOrNull(index)
+                            song?.let { s -> onSongClick(songs.indexOfFirst { it.id == s.id }) }
+                        },
                         onBack = {
                             onBackFromArtist?.invoke()
                             onViewStateChange(LibraryViewState.SONGS)
@@ -612,7 +615,10 @@ private fun LibraryContent(
                     AlbumSongsContent(
                         albumName = selectedAlbum ?: "",
                         songs = albumSongs,
-                        onSongClick = { id: Long -> onSongClick(id) },
+                        onSongClick = { index ->
+                            val song = albumSongs.getOrNull(index)
+                            song?.let { s -> onSongClick(songs.indexOfFirst { it.id == s.id }) }
+                        },
                         onBack = {
                             onBackFromAlbum?.invoke()
                             onViewStateChange(LibraryViewState.SONGS)
@@ -630,7 +636,7 @@ private fun LibraryContent(
 @Composable
 private fun LibrarySongsContent(
     songs: List<Song>,
-    onSongClick: (Long) -> Unit,
+    onSongClick: (Int) -> Unit,
     selectedIndices: Set<Int>,
     onSelectionChange: (Int) -> Unit,
     onToggleMultiSelect: () -> Unit,
@@ -736,7 +742,7 @@ private fun LibrarySongsContent(
                                 if (isMultiSelectMode) {
                                     onSelectionChange(index)
                                 } else {
-                                    onSongClick(song.id)
+                                    onSongClick(index)
                                 }
                             }
                             .background(if (isSelected) Color(0xFF2A2A4E) else Color.Transparent)
@@ -904,7 +910,7 @@ private fun AlbumListContent(
 private fun ArtistSongsContent(
     artistName: String,
     songs: List<Song>,
-    onSongClick: (Long) -> Unit,
+    onSongClick: (Int) -> Unit,
     onBack: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -948,7 +954,7 @@ private fun ArtistSongsContent(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSongClick(song.id) }
+                            .clickable { onSongClick(index) }
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -986,7 +992,7 @@ private fun ArtistSongsContent(
 private fun AlbumSongsContent(
     albumName: String,
     songs: List<Song>,
-    onSongClick: (Long) -> Unit,
+    onSongClick: (Int) -> Unit,
     onBack: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -1030,7 +1036,7 @@ private fun AlbumSongsContent(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSongClick(song.id) }
+                            .clickable { onSongClick(index) }
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1068,7 +1074,7 @@ private fun AlbumSongsContent(
 private fun PlayingListContent(
     songs: List<Song>,
     currentIndex: Int,
-    onSongClick: (Long) -> Unit,
+    onSongClick: (Int) -> Unit,
     selectedIndices: Set<Int>,
     onSelectionChange: (Int) -> Unit,
     onToggleMultiSelect: () -> Unit,
@@ -1167,7 +1173,7 @@ private fun PlayingListContent(
                                 if (isMultiSelectMode) {
                                     onSelectionChange(index)
                                 } else {
-                                    onSongClick(song.id)
+                                    onSongClick(index)
                                 }
                             }
                             .background(
@@ -1247,7 +1253,7 @@ private fun TabButton(
 private fun PlaylistContent(
     songs: List<Song>,
     currentIndex: Int,
-    onSongClick: (Long) -> Unit,
+    onSongClick: (Int) -> Unit,
     onMultiSelectToggle: (() -> Unit)? = null,
     isMultiSelectMode: Boolean = false,
     selectedIndices: Set<Int> = emptySet(),
@@ -1273,7 +1279,7 @@ private fun PlaylistContent(
                             if (isMultiSelectMode && onSelectionChange != null) {
                                 Modifier.clickable { onSelectionChange(index) }
                             } else {
-                                Modifier.clickable { onSongClick(song.id) }
+                                Modifier.clickable { onSongClick(index) }
                             }
                         )
                         .background(if (isCurrentSong) Color(0xFF2A2A4E) else Color.Transparent)
@@ -1686,7 +1692,7 @@ private fun LibraryMultiSelectContent(
 private fun PlaylistDetailContent(
     playlistName: String,
     songs: List<Song>,
-    onSongClick: (Long) -> Unit,
+    onSongClick: (Int) -> Unit,
     onBack: () -> Unit,
     onDeleteSong: ((Int) -> Unit)? = null
 ) {
@@ -1731,7 +1737,7 @@ private fun PlaylistDetailContent(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSongClick(song.id) }
+                            .clickable { onSongClick(index) }
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
