@@ -84,16 +84,19 @@ object LrcParser {
     }
 
     private fun searchLrcFileInDirectory(dir: DocumentFile, musicFileName: String): Lyrics? {
-        dir.listFiles().forEach { file ->
+        val files = dir.listFiles() ?: return null
+        for (i in files.indices) {
+            val file = files[i]
             if (file.isDirectory) {
                 val result = searchLrcFileInDirectory(file, musicFileName)
                 if (result != null) return result
             } else if (file.isFile) {
-                val name = file.name ?: return@forEach
+                val name = file.name ?: continue
                 if (name.startsWith(musicFileName, ignoreCase = true) &&
                     (name.endsWith(".lrc", true) || name.endsWith(".LRC", true))) {
                     Logger.d(TAG, "SAF找到歌词文件: ${file.uri}")
-                    return parseLrcFromUri(file.context ?: return@forEach, file.uri)
+                    val context = file.context ?: continue
+                    return parseLrcFromUri(context, file.uri)
                 }
             }
         }

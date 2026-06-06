@@ -61,11 +61,13 @@ object MediaStoreHelper {
     }
 
     private fun scanDirectoryForAudioFiles(context: Context, dir: DocumentFile, songs: MutableList<Song>) {
-        dir.listFiles().forEach { file ->
+        val files = dir.listFiles() ?: return
+        for (i in files.indices) {
+            val file = files[i]
             if (file.isDirectory) {
                 scanDirectoryForAudioFiles(context, file, songs)
             } else if (file.isFile) {
-                val name = file.name ?: return@forEach
+                val name = file.name ?: continue
                 if (name.endsWith(".mp3", true) ||
                     name.endsWith(".flac", true) ||
                     name.endsWith(".m4a", true) ||
