@@ -84,9 +84,9 @@ object LrcParser {
     }
 
     private fun searchLrcFileInDirectory(dir: DocumentFile, musicFileName: String): Lyrics? {
-        val files = dir.listFiles() ?: return null
-        for (i in files.indices) {
-            val file = files[i]
+        val files: Array<DocumentFile>? = dir.listFiles() ?: return null
+        if (files == null) return null
+        for (file in files) {
             if (file.isDirectory) {
                 val result = searchLrcFileInDirectory(file, musicFileName)
                 if (result != null) return result

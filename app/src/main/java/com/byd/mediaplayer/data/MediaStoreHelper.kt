@@ -61,9 +61,9 @@ object MediaStoreHelper {
     }
 
     private fun scanDirectoryForAudioFiles(context: Context, dir: DocumentFile, songs: MutableList<Song>) {
-        val files = dir.listFiles() ?: return
-        for (i in files.indices) {
-            val file = files[i]
+        val files: Array<DocumentFile>? = dir.listFiles() ?: return
+        if (files == null) return
+        for (file in files) {
             if (file.isDirectory) {
                 scanDirectoryForAudioFiles(context, file, songs)
             } else if (file.isFile) {
