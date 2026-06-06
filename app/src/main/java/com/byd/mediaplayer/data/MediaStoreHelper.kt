@@ -5,7 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import android.database.DocumentFile
+import androidx.documentfile.provider.DocumentFile
 import com.byd.mediaplayer.model.Song
 import com.byd.mediaplayer.util.Logger
 

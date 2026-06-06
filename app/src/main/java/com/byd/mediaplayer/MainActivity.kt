@@ -256,8 +256,21 @@ class MainActivity : ComponentActivity() {
                 preferencesManager.musicDirectoryUri = uri.toString()
                 musicDirectoryUri = uri
                 // 重新加载歌曲
-                reloadSongsWithDirectory()
+                val repository = MusicRepository.getInstance(this@MainActivity)
+                val newSongs = MediaStoreHelper.querySongsFromDirectory(this@MainActivity, uri)
+                librarySongs = newSongs
+                playlist = newSongs
+                Logger.i(TAG, "歌曲重新加载完成，共 ${newSongs.size} 首")
             }
+        }
+
+        fun openDirectoryPicker() {
+            Logger.d(TAG, "打开目录选择器")
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            }
+            directoryPickerLauncher.launch(intent)
         }
 
         LaunchedEffect(playerService) {
@@ -391,13 +404,10 @@ class MainActivity : ComponentActivity() {
             onNext = { playerService?.getPlayerManager()?.playNext() },
             onPrevious = { playerService?.getPlayerManager()?.playPrevious() },
             onSeek = { playerService?.getPlayerManager()?.seekTo(it) },
-            onSongClick = { songId ->
-                val index = playlist.indexOfFirst { it.id == songId }
-                if (index >= 0) {
-                    playerService?.getPlayerManager()?.let { manager ->
-                        manager.setPlaylist(playlist, index)
-                        lyrics = null // 清空歌词，下次自动加载
-                    }
+            onSongClick = { index ->
+                playerService?.getPlayerManager()?.let { manager ->
+                    manager.setPlaylist(playlist, index)
+                    lyrics = null // 清空歌词，下次自动加载
                 }
             },
             onPlayModeChange = {
@@ -602,27 +612,5 @@ class MainActivity : ComponentActivity() {
                 openDirectoryPicker()
             }
         )
-    }
-
-    private fun openDirectoryPicker() {
-        Logger.d(TAG, "打开目录选择器")
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-        }
-        directoryPickerLauncher.launch(intent)
-    }
-
-    private fun reloadSongsWithDirectory() {
-        Logger.d(TAG, "重新加载歌曲，目录: $musicDirectoryUri")
-        val repository = MusicRepository.getInstance(this)
-        val newSongs = if (musicDirectoryUri != null) {
-            MediaStoreHelper.querySongsFromDirectory(this, musicDirectoryUri!!)
-        } else {
-            repository.getAllSongs()
-        }
-        librarySongs = newSongs
-        playlist = newSongs
-        Logger.i(TAG, "歌曲重新加载完成，共 ${newSongs.size} 首")
     }
 }
