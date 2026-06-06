@@ -91,25 +91,56 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // 目录选择器结果Flow
+    private val _directoryPickerResult = kotlinx.coroutines.flow.MutableSharedFlow<Uri?>()
+    private val directoryPickerResult = _directoryPickerResult.asSharedFlow()
+
+    private val directoryPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        result.data?.data?.let { uri ->
+            // 持久化权限
+            try {
+                contentResolver.takePersistableUriPermission(
+                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) {
+                Logger.e(TAG, "持久化目录权限失败: ${e.message}")
+            }
+            // 通过Flow通知composable
+            CoroutineScope(Dispatchers.Main).launch {
+                _directoryPickerResult.emit(uri)
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Logger.d(TAG, "MainActivity onCreate")
+        Logger.d(TAG, "MainActivity onCreate - 开始")
 
         preferencesManager = PreferencesManager(this)
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
+        Logger.d(TAG, "MainActivity onCreate - setContent前")
         setContent {
+            Logger.d(TAG, "PlayerScreenWithState - 开始渲染")
             MaterialTheme {
+                Logger.d(TAG, "PlayerScreenWithState - Surface前")
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    Logger.d(TAG, "PlayerScreenWithState - 调用前")
                     PlayerScreenWithState()
+                    Logger.d(TAG, "PlayerScreenWithState - 调用后")
                 }
+                Logger.d(TAG, "PlayerScreenWithState - Surface后")
             }
+            Logger.d(TAG, "PlayerScreenWithState - MaterialTheme后")
         }
+        Logger.d(TAG, "MainActivity onCreate - setContent后")
 
         checkAndRequestPermissions()
+        Logger.d(TAG, "MainActivity onCreate - 完成")
     }
 
     override fun onStart() {
@@ -241,26 +272,20 @@ class MainActivity : ComponentActivity() {
         var selectedPlaylistSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
         var musicDirectoryUri by remember { mutableStateOf<Uri?>(null) }
 
-        // 目录选择器
-        val directoryPickerLauncher = registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult()
-        ) { result ->
-            result.data?.data?.let { uri ->
-                // 持久化权限
-                try {
-                    contentResolver.takePersistableUriPermission(
-                        uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                } catch (e: Exception) {
-                    Logger.e(TAG, "持久化目录权限失败: ${e.message}")
+        // 监听目录选择结果
+        LaunchedEffect(directoryPickerResult) {
+            directoryPickerResult.collect { uri ->
+                uri?.let {
+                    Logger.d(TAG, "收到目录选择结果: $it")
+                    preferencesManager.musicDirectoryUri = it.toString()
+                    musicDirectoryUri = it
+                    // 重新加载歌曲
+                    val repository = MusicRepository.getInstance(this@MainActivity)
+                    val newSongs = MediaStoreHelper.querySongsFromDirectory(this@MainActivity, it)
+                    librarySongs = newSongs
+                    playlist = newSongs
+                    Logger.i(TAG, "歌曲重新加载完成，共 ${newSongs.size} 首")
                 }
-                preferencesManager.musicDirectoryUri = uri.toString()
-                musicDirectoryUri = uri
-                // 重新加载歌曲
-                val repository = MusicRepository.getInstance(this@MainActivity)
-                val newSongs = MediaStoreHelper.querySongsFromDirectory(this@MainActivity, uri)
-                librarySongs = newSongs
-                playlist = newSongs
-                Logger.i(TAG, "歌曲重新加载完成，共 ${newSongs.size} 首")
             }
         }
 
@@ -272,6 +297,8 @@ class MainActivity : ComponentActivity() {
             }
             directoryPickerLauncher.launch(intent)
         }
+
+        Logger.d(TAG, "PlayerScreenWithState - 初始化完成，开始LaunchedEffect")
 
         LaunchedEffect(playerService) {
             while (playerService == null) {
