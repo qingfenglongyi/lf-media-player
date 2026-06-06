@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.database.DocumentFile
 import com.byd.mediaplayer.model.Song
 import com.byd.mediaplayer.util.Logger
 
@@ -34,6 +35,61 @@ object MediaStoreHelper {
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
         val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
         return querySongs(context, selection, null, sortOrder)
+    }
+
+    /**
+     * 从指定目录查询歌曲（使用SAF）
+     */
+    fun querySongsFromDirectory(context: Context, directoryUri: Uri): List<Song> {
+        Logger.d(TAG, "从目录查询歌曲: $directoryUri")
+        val songs = mutableListOf<Song>()
+
+        try {
+            val documentFile = DocumentFile.fromTreeUri(context, directoryUri) ?: run {
+                Logger.e(TAG, "无法创建DocumentFile")
+                return songs
+            }
+
+            scanDirectoryForAudioFiles(context, documentFile, songs)
+
+            Logger.i(TAG, "从目录共扫描 ${songs.size} 首歌曲")
+        } catch (e: Exception) {
+            Logger.e(TAG, "扫描目录失败: ${e.message}", e)
+        }
+
+        return songs
+    }
+
+    private fun scanDirectoryForAudioFiles(context: Context, dir: DocumentFile, songs: MutableList<Song>) {
+        dir.listFiles().forEach { file ->
+            if (file.isDirectory) {
+                scanDirectoryForAudioFiles(context, file, songs)
+            } else if (file.isFile) {
+                val name = file.name ?: return@forEach
+                if (name.endsWith(".mp3", true) ||
+                    name.endsWith(".flac", true) ||
+                    name.endsWith(".m4a", true) ||
+                    name.endsWith(".wav", true) ||
+                    name.endsWith(".ogg", true) ||
+                    name.endsWith(".aac", true)) {
+
+                    val uri = file.uri
+                    val title = name.substringBeforeLast(".")
+                    songs.add(
+                        Song(
+                            id = uri.hashCode().toLong(),
+                            title = title,
+                            artist = "未知艺术家",
+                            album = "未知专辑",
+                            duration = 0L,
+                            uri = uri,
+                            path = uri.toString()
+                        )
+                    )
+                    Logger.v(TAG, "扫描到音频文件: $name")
+                }
+            }
+        }
     }
 
     fun querySongsByArtist(context: Context, artist: String): List<Song> {

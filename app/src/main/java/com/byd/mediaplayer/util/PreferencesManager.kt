@@ -28,6 +28,10 @@ class PreferencesManager(context: Context) {
         get() = prefs.getString(KEY_PLAYLIST_PATH, null)
         set(value) = prefs.edit { putString(KEY_PLAYLIST_PATH, value) }
 
+    var musicDirectoryUri: String?
+        get() = prefs.getString(KEY_MUSIC_DIRECTORY_URI, null)
+        set(value) = prefs.edit { putString(KEY_MUSIC_DIRECTORY_URI, value) }
+
     fun clear() {
         prefs.edit { clear() }
     }
@@ -39,5 +43,6 @@ class PreferencesManager(context: Context) {
         private const val KEY_PLAY_MODE = "play_mode"
         private const val KEY_VOLUME = "volume"
         private const val KEY_PLAYLIST_PATH = "last_playlist_path"
+        private const val KEY_MUSIC_DIRECTORY_URI = "music_directory_uri"
     }
 }

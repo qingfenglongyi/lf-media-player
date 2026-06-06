@@ -80,6 +80,7 @@ fun PlaylistPanel(
     selectedPlaylistName: String? = null,
     onBackFromPlaylist: (() -> Unit)? = null,
     getPlaylistSongs: ((String) -> List<Song>)? = null,
+    onSetMusicDirectory: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -308,7 +309,8 @@ fun PlaylistPanel(
                                         onDeleteFromLibrary = { indices ->
                                             val ids = indices.map { allSongs[it].id }
                                             onDeleteSongsFromLibrary?.invoke(ids)
-                                        }
+                                        },
+                                        onSetMusicDirectory = onSetMusicDirectory
                                     )
                                 }
                             } else {
@@ -350,7 +352,8 @@ fun PlaylistPanel(
                                     onDeleteFromLibrary = { indices ->
                                         val ids = indices.map { allSongs[it].id }
                                         onDeleteSongsFromLibrary?.invoke(ids)
-                                    }
+                                    },
+                                    onSetMusicDirectory = onSetMusicDirectory
                                 )
                             }
                         }
@@ -507,7 +510,8 @@ private fun LibraryContent(
     onBackFromAlbum: () -> Unit,
     onAddToQueue: ((Set<Int>) -> Unit)? = null,
     onAddToPlaylist: ((Set<Int>) -> Unit)? = null,
-    onDeleteFromLibrary: ((Set<Int>) -> Unit)? = null
+    onDeleteFromLibrary: ((Set<Int>) -> Unit)? = null,
+    onSetMusicDirectory: (() -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // 搜索框
@@ -573,6 +577,7 @@ private fun LibraryContent(
                         onDeleteFromLibrary = { indices ->
                             onDeleteFromLibrary?.invoke(indices)
                         },
+                        onSetMusicDirectory = onSetMusicDirectory,
                         isMultiSelectMode = isMultiSelectMode
                     )
                 }
@@ -632,6 +637,7 @@ private fun LibrarySongsContent(
     onAddToQueue: (Set<Int>) -> Unit,
     onAddToPlaylist: (Set<Int>) -> Unit,
     onDeleteFromLibrary: (Set<Int>) -> Unit,
+    onSetMusicDirectory: (() -> Unit)? = null,
     isMultiSelectMode: Boolean = false
 ) {
     var showDropdownMenu by remember { mutableStateOf(false) }
@@ -688,7 +694,15 @@ private fun LibrarySongsContent(
                                 showDropdownMenu = false
                             }
                         )
+                        Divider()
                     }
+                    DropdownMenuItem(
+                        text = { Text("设置音乐目录") },
+                        onClick = {
+                            onSetMusicDirectory?.invoke()
+                            showDropdownMenu = false
+                        }
+                    )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(

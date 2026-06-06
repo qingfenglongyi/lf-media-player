@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -238,6 +239,26 @@ class MainActivity : ComponentActivity() {
         var libraryViewState by remember { mutableStateOf(LibraryViewState.SONGS) }
         var selectedPlaylistName by remember { mutableStateOf<String?>(null) }
         var selectedPlaylistSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
+        var musicDirectoryUri by remember { mutableStateOf<Uri?>(null) }
+
+        // 目录选择器
+        val directoryPickerLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            result.data?.data?.let { uri ->
+                // 持久化权限
+                try {
+                    contentResolver.takePersistableUriPermission(
+                        uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (e: Exception) {
+                    Logger.e(TAG, "持久化目录权限失败: ${e.message}")
+                }
+                preferencesManager.musicDirectoryUri = uri.toString()
+                musicDirectoryUri = uri
+                // 重新加载歌曲
+                reloadSongsWithDirectory()
+            }
+        }
 
         LaunchedEffect(playerService) {
             while (playerService == null) {
@@ -247,8 +268,22 @@ class MainActivity : ComponentActivity() {
             val manager = service.getPlayerManager()
             val repository = MusicRepository.getInstance(this@MainActivity)
 
+            // 加载保存的音乐目录设置
+            preferencesManager.musicDirectoryUri?.let { uriString ->
+                try {
+                    musicDirectoryUri = Uri.parse(uriString)
+                    Logger.d(TAG, "加载音乐目录: $musicDirectoryUri")
+                } catch (e: Exception) {
+                    Logger.e(TAG, "解析音乐目录URI失败: ${e.message}")
+                }
+            }
+
             // 加载歌曲到歌曲库
-            val allSongs = repository.getAllSongs()
+            val allSongs = if (musicDirectoryUri != null) {
+                MediaStoreHelper.querySongsFromDirectory(this@MainActivity, musicDirectoryUri!!)
+            } else {
+                repository.getAllSongs()
+            }
             librarySongs = allSongs
             // 播放列表初始与歌曲库相同
             playlist = allSongs
@@ -329,7 +364,7 @@ class MainActivity : ComponentActivity() {
         LaunchedEffect(currentSong) {
             currentSong?.let { song ->
                 Logger.i(TAG, "歌曲变化: ${song.title}, 路径: ${song.path}")
-                lyrics = LrcParser.parseLrc(this@MainActivity, song.path)
+                lyrics = LrcParser.parseLrc(this@MainActivity, song.path, musicDirectoryUri)
             }
         }
 
@@ -562,7 +597,32 @@ class MainActivity : ComponentActivity() {
                 selectedPlaylistSongs = emptyList()
                 libraryViewState = LibraryViewState.SONGS
             },
-            getPlaylistSongs = { name -> selectedPlaylistSongs }
+            getPlaylistSongs = { name -> selectedPlaylistSongs },
+            onSetMusicDirectory = {
+                openDirectoryPicker()
+            }
         )
+    }
+
+    private fun openDirectoryPicker() {
+        Logger.d(TAG, "打开目录选择器")
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        }
+        directoryPickerLauncher.launch(intent)
+    }
+
+    private fun reloadSongsWithDirectory() {
+        Logger.d(TAG, "重新加载歌曲，目录: $musicDirectoryUri")
+        val repository = MusicRepository.getInstance(this)
+        val newSongs = if (musicDirectoryUri != null) {
+            MediaStoreHelper.querySongsFromDirectory(this, musicDirectoryUri!!)
+        } else {
+            repository.getAllSongs()
+        }
+        librarySongs = newSongs
+        playlist = newSongs
+        Logger.i(TAG, "歌曲重新加载完成，共 ${newSongs.size} 首")
     }
 }

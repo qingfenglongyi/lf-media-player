@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.database.DocumentFile
 import com.byd.mediaplayer.model.Lyrics
 import java.io.BufferedReader
 import java.io.File
@@ -14,10 +15,26 @@ object LrcParser {
 
     private const val TAG = "LrcParser"
 
-    fun parseLrc(context: Context, musicPath: String): Lyrics? {
-        Logger.i(TAG, "开始解析歌词，音乐路径: $musicPath")
+    /**
+     * 解析歌词，支持指定目录限制
+     * @param context Context
+     * @param musicPath 音乐文件路径或URI
+     * @param musicDirectoryUri 可选的目录URI，用于限制歌词搜索范围（使用SAF）
+     */
+    fun parseLrc(context: Context, musicPath: String, musicDirectoryUri: Uri? = null): Lyrics? {
+        Logger.i(TAG, "开始解析歌词，音乐路径: $musicPath, 目录限制: $musicDirectoryUri")
 
-        // 尝试多种方式查找歌词文件
+        // 如果有目录限制，使用SAF方式搜索
+        if (musicDirectoryUri != null) {
+            val lyrics = trySearchLrcInSafDirectory(context, musicPath, musicDirectoryUri)
+            if (lyrics != null) {
+                Logger.i(TAG, "通过SAF目录搜索找到歌词")
+                return lyrics
+            }
+            return null
+        }
+
+        // 尝试多种方式查找歌词文件（原有逻辑）
         val lrcPath = musicPath.substringBeforeLast(".") + ".lrc"
         Logger.d(TAG, "尝试直接路径: $lrcPath")
 
@@ -43,6 +60,43 @@ object LrcParser {
         }
 
         Logger.w(TAG, "未找到歌词文件: $lrcPath")
+        return null
+    }
+
+    /**
+     * 通过SAF在指定目录中搜索歌词文件
+     */
+    private fun trySearchLrcInSafDirectory(context: Context, musicPath: String, directoryUri: Uri): Lyrics? {
+        return try {
+            val documentFile = DocumentFile.fromTreeUri(context, directoryUri) ?: run {
+                Logger.e(TAG, "无法创建DocumentFile")
+                return null
+            }
+
+            val musicFileName = Uri.parse(musicPath).lastPathSegment?.substringBeforeLast(".") ?: return null
+            Logger.d(TAG, "SAF目录搜索，文件名: $musicFileName")
+
+            searchLrcFileInDirectory(documentFile, musicFileName)
+        } catch (e: Exception) {
+            Logger.e(TAG, "SAF目录搜索异常: ${e.message}", e)
+            null
+        }
+    }
+
+    private fun searchLrcFileInDirectory(dir: DocumentFile, musicFileName: String): Lyrics? {
+        dir.listFiles().forEach { file ->
+            if (file.isDirectory) {
+                val result = searchLrcFileInDirectory(file, musicFileName)
+                if (result != null) return result
+            } else if (file.isFile) {
+                val name = file.name ?: return@forEach
+                if (name.startsWith(musicFileName, ignoreCase = true) &&
+                    (name.endsWith(".lrc", true) || name.endsWith(".LRC", true))) {
+                    Logger.d(TAG, "SAF找到歌词文件: ${file.uri}")
+                    return parseLrcFromUri(file.context ?: return@forEach, file.uri)
+                }
+            }
+        }
         return null
     }
 
