@@ -950,7 +950,7 @@ private fun ArtistSongsContent(
             }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                itemsIndexed(songs) { _, song ->
+                itemsIndexed(songs) { index, song ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1032,7 +1032,7 @@ private fun AlbumSongsContent(
             }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                itemsIndexed(songs) { _, song ->
+                itemsIndexed(songs) { index, song ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
