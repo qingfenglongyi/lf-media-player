@@ -105,6 +105,20 @@ fun PlaylistPanel(
         }
     }
 
+    // 当selectedArtist变为null时，自动重置viewState（处理返回操作）
+    LaunchedEffect(selectedArtist) {
+        if (selectedArtist == null && viewState == LibraryViewState.ARTIST_SONGS) {
+            viewState = LibraryViewState.SONGS
+        }
+    }
+
+    // 当selectedAlbum变为null时，自动重置viewState（处理返回操作）
+    LaunchedEffect(selectedAlbum) {
+        if (selectedAlbum == null && viewState == LibraryViewState.ALBUM_SONGS) {
+            viewState = LibraryViewState.SONGS
+        }
+    }
+
     // 多选模式状态
     var isMultiSelectMode by remember { mutableStateOf(false) }
     var selectedSongIndices by remember { mutableStateOf<Set<Int>>(emptySet()) }

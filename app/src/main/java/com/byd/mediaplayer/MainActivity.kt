@@ -337,7 +337,7 @@ class MainActivity : ComponentActivity() {
 
             // 加载歌单
             val database = AppDatabase.getInstance(this@MainActivity)
-            val playlistEntities = database.playlistDao().getAllPlaylists().first()
+            val playlistEntities = database.playlistDao().getAllPlaylistsOnce()
             playlists = playlistEntities.map { it.name }
 
             if (playlist.isNotEmpty()) {
@@ -466,7 +466,7 @@ class MainActivity : ComponentActivity() {
                         Logger.i(TAG, "歌单创建成功: name=$name, id=$id")
                         // 刷新歌单列表
                         withContext(Dispatchers.Main) {
-                            val updatedPlaylists = db.playlistDao().getAllPlaylists().first()
+                            val updatedPlaylists = db.playlistDao().getAllPlaylistsOnce()
                             playlists = updatedPlaylists.map { it.name }
                             Logger.d(TAG, "歌单列表已刷新，数量: ${playlists.size}")
                         }
