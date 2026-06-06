@@ -321,19 +321,27 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // 加载歌曲到歌曲库
-            val allSongs = if (musicDirectoryUri != null) {
-                MediaStoreHelper.querySongsFromDirectory(this@MainActivity, musicDirectoryUri!!)
+            // 加载歌曲到歌曲库（只有设置了音乐目录才自动加载）
+            if (musicDirectoryUri != null) {
+                val allSongs = MediaStoreHelper.querySongsFromDirectory(this@MainActivity, musicDirectoryUri!!)
+                librarySongs = allSongs
+                playlist = allSongs
+                Logger.i(TAG, "从目录加载歌曲完成: ${allSongs.size}首")
             } else {
-                repository.getAllSongs()
+                // 首次启动或未设置目录，不自动搜索
+                librarySongs = emptyList()
+                playlist = emptyList()
+                Logger.i(TAG, "未设置音乐目录，等待用户设置")
             }
-            librarySongs = allSongs
-            // 播放列表初始与歌曲库相同
-            playlist = allSongs
 
-            // 加载艺术家和专辑列表
-            artists = MediaStoreHelper.getAllArtists(this@MainActivity)
-            albums = MediaStoreHelper.getAllAlbums(this@MainActivity)
+            // 加载艺术家和专辑列表（仅在有歌曲时）
+            if (musicDirectoryUri != null) {
+                artists = MediaStoreHelper.getAllArtists(this@MainActivity)
+                albums = MediaStoreHelper.getAllAlbums(this@MainActivity)
+            } else {
+                artists = emptyList()
+                albums = emptyList()
+            }
 
             // 加载歌单
             val database = AppDatabase.getInstance(this@MainActivity)
@@ -478,8 +486,13 @@ class MainActivity : ComponentActivity() {
             onDeletePlaylist = { name ->
                 CoroutineScope(Dispatchers.IO).launch {
                     val database = AppDatabase.getInstance(this@MainActivity)
-                    database.playlistDao().getAllPlaylists().first().find { it.name == name }?.let {
+                    database.playlistDao().getAllPlaylistsOnce().find { it.name == name }?.let {
                         database.playlistDao().deletePlaylist(it)
+                    }
+                    // 刷新歌单列表
+                    withContext(Dispatchers.Main) {
+                        val updatedPlaylists = database.playlistDao().getAllPlaylistsOnce()
+                        playlists = updatedPlaylists.map { it.name }
                     }
                 }
             },

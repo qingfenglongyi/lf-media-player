@@ -91,28 +91,22 @@ fun PlaylistPanel(
     var songToAdd by remember { mutableStateOf<Song?>(null) }
     var viewState by remember { mutableStateOf(LibraryViewState.SONGS) }
 
-    // 当外部传入的selectedArtist变化时，自动切换到对应视图
-    LaunchedEffect(selectedArtist) {
-        if (selectedArtist != null) {
-            viewState = LibraryViewState.ARTIST_SONGS
+    // 初始化时检查selectedArtist/selectedAlbum是否已有值
+    LaunchedEffect(selectedArtist, selectedAlbum) {
+        when {
+            selectedArtist != null -> viewState = LibraryViewState.ARTIST_SONGS
+            selectedAlbum != null -> viewState = LibraryViewState.ALBUM_SONGS
         }
     }
 
-    // 当外部传入的selectedAlbum变化时，自动切换到对应视图
-    LaunchedEffect(selectedAlbum) {
-        if (selectedAlbum != null) {
-            viewState = LibraryViewState.ALBUM_SONGS
-        }
-    }
-
-    // 当selectedArtist变为null时，自动重置viewState（处理返回操作）
+    // 当selectedArtist从有值变为null时（返回操作）
     LaunchedEffect(selectedArtist) {
         if (selectedArtist == null && viewState == LibraryViewState.ARTIST_SONGS) {
             viewState = LibraryViewState.SONGS
         }
     }
 
-    // 当selectedAlbum变为null时，自动重置viewState（处理返回操作）
+    // 当selectedAlbum从有值变为null时（返回操作）
     LaunchedEffect(selectedAlbum) {
         if (selectedAlbum == null && viewState == LibraryViewState.ALBUM_SONGS) {
             viewState = LibraryViewState.SONGS

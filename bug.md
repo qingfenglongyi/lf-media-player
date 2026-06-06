@@ -27,3 +27,6 @@
 - 【已修复】歌曲库点击艺术家后无法返回 - 添加LaunchedEffect处理selectedArtist/selectedAlbum为null时重置viewState
 - 【已修复】清空播放列表后退出APP再启动，播放列表又有了 - 在onClearPlaylist中添加saveCurrentPlaylist保存空列表状态
 - 【已修复】设置音乐目录扫描到的歌曲没有艺术家、专辑和时长信息 - 使用MediaMetadataRetriever获取音频元数据
+- 【已修复】首次启动自动搜索本地音乐 - 只有设置音乐目录后才自动加载歌曲
+- 【已修复】歌单删除后列表不刷新 - 在onDeletePlaylist中添加刷新逻辑和getAllPlaylistsOnce()
+- 【已修复】歌曲库界面显示异常 - 修复PlaylistPanel中viewState初始化逻辑，使用LaunchedEffect同时检查selectedArtist和selectedAlbum
