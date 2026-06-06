@@ -25,3 +25,5 @@
 - 【已修复】清空播放列表后UI不更新 - 同步更新playlist状态变量
 - 【已修复】创建了歌单，但列表不显示 - 添加getAllPlaylistsOnce()直接获取数据
 - 【已修复】歌曲库点击艺术家后无法返回 - 添加LaunchedEffect处理selectedArtist/selectedAlbum为null时重置viewState
+- 【已修复】清空播放列表后退出APP再启动，播放列表又有了 - 在onClearPlaylist中添加saveCurrentPlaylist保存空列表状态
+- 【已修复】设置音乐目录扫描到的歌曲没有艺术家、专辑和时长信息 - 使用MediaMetadataRetriever获取音频元数据

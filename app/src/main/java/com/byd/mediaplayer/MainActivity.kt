@@ -551,8 +551,13 @@ class MainActivity : ComponentActivity() {
                 }
             },
             onClearPlaylist = {
+                val repository = MusicRepository.getInstance(this@MainActivity)
                 playerService?.getPlayerManager()?.setPlaylist(emptyList(), 0)
                 playlist = emptyList() // 同步更新UI状态
+                // 保存清空后的播放列表状态
+                CoroutineScope(Dispatchers.IO).launch {
+                    repository.saveCurrentPlaylist(emptyList(), 0, playMode.name)
+                }
             },
             onAddToPlaylist = { song ->
                 CoroutineScope(Dispatchers.IO).launch {

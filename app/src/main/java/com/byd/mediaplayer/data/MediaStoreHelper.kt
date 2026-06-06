@@ -2,6 +2,7 @@ package com.byd.mediaplayer.data
 
 import android.content.ContentUris
 import android.content.Context
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -77,18 +78,36 @@ object MediaStoreHelper {
 
                     val uri = file.uri
                     val title = name.substringBeforeLast(".")
+
+                    // 使用MediaMetadataRetriever获取音频元数据
+                    var artist = "未知艺术家"
+                    var album = "未知专辑"
+                    var duration = 0L
+
+                    try {
+                        val retriever = MediaMetadataRetriever()
+                        retriever.setDataSource(context, uri)
+                        artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST) ?: "未知艺术家"
+                        album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM) ?: "未知专辑"
+                        val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                        duration = durationStr?.toLongOrNull() ?: 0L
+                        retriever.release()
+                    } catch (e: Exception) {
+                        Logger.w(TAG, "无法获取音频文件元数据: $name, ${e.message}")
+                    }
+
                     songs.add(
                         Song(
                             id = uri.hashCode().toLong(),
                             title = title,
-                            artist = "未知艺术家",
-                            album = "未知专辑",
-                            duration = 0L,
+                            artist = artist,
+                            album = album,
+                            duration = duration,
                             uri = uri,
                             path = uri.toString()
                         )
                     )
-                    Logger.v(TAG, "扫描到音频文件: $name")
+                    Logger.v(TAG, "扫描到音频文件: $name, 艺术家: $artist, 专辑: $album, 时长: $duration")
                 }
             }
         }
