@@ -38,6 +38,9 @@ import com.byd.mediaplayer.util.PreferencesManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -274,14 +277,14 @@ class MainActivity : ComponentActivity() {
 
         // 监听目录选择结果
         LaunchedEffect(directoryPickerResult) {
-            directoryPickerResult.collect { uri ->
-                uri?.let {
-                    Logger.d(TAG, "收到目录选择结果: $it")
-                    preferencesManager.musicDirectoryUri = it.toString()
-                    musicDirectoryUri = it
+            directoryPickerResult.collect { uri: Uri? ->
+                uri?.let { selectedUri ->
+                    Logger.d(TAG, "收到目录选择结果: $selectedUri")
+                    preferencesManager.musicDirectoryUri = selectedUri.toString()
+                    musicDirectoryUri = selectedUri
                     // 重新加载歌曲
                     val repository = MusicRepository.getInstance(this@MainActivity)
-                    val newSongs = MediaStoreHelper.querySongsFromDirectory(this@MainActivity, it)
+                    val newSongs = MediaStoreHelper.querySongsFromDirectory(this@MainActivity, selectedUri)
                     librarySongs = newSongs
                     playlist = newSongs
                     Logger.i(TAG, "歌曲重新加载完成，共 ${newSongs.size} 首")
