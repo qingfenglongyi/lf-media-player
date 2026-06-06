@@ -76,6 +76,9 @@ dependencies {
     // Media compat for notification style
     implementation("androidx.media:media:1.7.0")
 
+    // DocumentFile for SAF
+    implementation("androidx.documentfile:documentfile:1.0.1")
+
     // Lifecycle
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")
