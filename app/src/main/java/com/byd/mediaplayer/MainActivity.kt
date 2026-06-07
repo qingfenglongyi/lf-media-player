@@ -213,6 +213,13 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        // 首次启动时不自动恢复播放列表
+        if (preferencesManager.isFirstLaunch) {
+            Logger.i(TAG, "首次启动，loadSongsAndStartPlay中跳过恢复播放状态")
+            preferencesManager.isFirstLaunch = false
+            return
+        }
+
         val repository = MusicRepository.getInstance(this)
 
         CoroutineScope(Dispatchers.Main).launch {
