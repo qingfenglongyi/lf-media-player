@@ -38,7 +38,6 @@ fun PlayerScreen(
     duration: Long,
     playMode: PlayMode,
     lyrics: Lyrics?,
-    volume: Float,
     showPlaylistPanel: Boolean,
     playlistTab: PlaylistTab,
     onPlayPause: () -> Unit,
@@ -47,7 +46,6 @@ fun PlayerScreen(
     onSeek: (Long) -> Unit,
     onSongClick: (Int) -> Unit,
     onPlayModeChange: () -> Unit,
-    onVolumeChange: (Float) -> Unit,
     onCenterViewToggle: () -> Unit,
     onPlaylistToggle: () -> Unit,
     onPlaylistTabChange: (PlaylistTab) -> Unit,
@@ -83,7 +81,6 @@ fun PlayerScreen(
     modifier: Modifier = Modifier
 ) {
     var centerView by remember { mutableStateOf(CenterView.VINYL) }
-    var showVolumeSlider by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
@@ -100,12 +97,14 @@ fun PlayerScreen(
             val songTitle = currentSong?.title ?: "未选择歌曲"
             val songArtist = currentSong?.artist ?: "比亚迪音乐播放器"
             val songInfo = "$songTitle - $songArtist"
-            AutoScrollingText(
-                text = songInfo,
-                modifier = Modifier.padding(vertical = 10.dp)
-            )
+            Box(modifier = Modifier.height(50.dp)) {
+                AutoScrollingText(
+                    text = songInfo,
+                    modifier = Modifier.padding(vertical = 10.dp)
+                )
+            }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // 中心视图切换区域
             Box(
@@ -137,7 +136,7 @@ fun PlayerScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // 进度条
             ProgressBar(
@@ -146,7 +145,7 @@ fun PlayerScreen(
                 onSeek = onSeek
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // 播放控制按钮（根据屏幕方向自适应布局）
             PlaybackControls(
@@ -156,31 +155,8 @@ fun PlayerScreen(
                 onNext = onNext,
                 onPrevious = onPrevious,
                 onPlayModeChange = onPlayModeChange,
-                onPlaylistToggle = onPlaylistToggle,
-                onVolumeClick = { showVolumeSlider = !showVolumeSlider }
+                onPlaylistToggle = onPlaylistToggle
             )
-        }
-
-        // 音量控制
-        if (showVolumeSlider) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .clickable { showVolumeSlider = false },
-                contentAlignment = Alignment.Center
-            ) {
-                VolumeControl(
-                    currentVolume = volume,
-                    onVolumeChange = {
-                        onVolumeChange(it)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp)
-                        .clickable(enabled = false) {}
-                )
-            }
         }
 
         // 播放列表面板
@@ -269,8 +245,7 @@ private fun PlaybackControls(
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onPlayModeChange: () -> Unit,
-    onPlaylistToggle: () -> Unit,
-    onVolumeClick: () -> Unit
+    onPlaylistToggle: () -> Unit
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp

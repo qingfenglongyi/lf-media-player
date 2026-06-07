@@ -97,4 +97,26 @@ interface ConfigDao {
 
     @Query("DELETE FROM config WHERE `key` = :key")
     suspend fun deleteConfig(key: String)
+
+    @Query("SELECT * FROM config")
+    suspend fun getAllConfigs(): List<Config>
+
+    // 便捷方法
+    @Query("SELECT value FROM config WHERE `key` = 'current_playlist'")
+    suspend fun getCurrentPlaylist(): String?
+
+    @Query("INSERT OR REPLACE INTO config (`key`, value, updatedAt) VALUES ('current_playlist', :json, :updatedAt)")
+    suspend fun setCurrentPlaylist(json: String, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("SELECT value FROM config WHERE `key` = 'current_id'")
+    suspend fun getCurrentId(): Long?
+
+    @Query("INSERT OR REPLACE INTO config (`key`, value, updatedAt) VALUES ('current_id', :id, :updatedAt)")
+    suspend fun setCurrentId(id: Long, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("SELECT value FROM config WHERE `key` = 'play_mode'")
+    suspend fun getPlayMode(): String?
+
+    @Query("INSERT OR REPLACE INTO config (`key`, value, updatedAt) VALUES ('play_mode', :mode, :updatedAt)")
+    suspend fun setPlayMode(mode: String, updatedAt: Long = System.currentTimeMillis())
 }

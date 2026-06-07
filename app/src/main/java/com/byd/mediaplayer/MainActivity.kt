@@ -474,7 +474,6 @@ class MainActivity : ComponentActivity() {
             duration = duration,
             playMode = playMode,
             lyrics = lyrics,
-            volume = volume,
             showPlaylistPanel = showPlaylistPanel,
             playlistTab = playlistTab,
             onPlayPause = { playerService?.getPlayerManager()?.playPause() },
@@ -490,12 +489,6 @@ class MainActivity : ComponentActivity() {
             onPlayModeChange = {
                 val newMode = playerService?.getPlayerManager()?.cyclePlayMode()
                 newMode?.let { playMode = it }
-            },
-            onVolumeChange = { newVolume ->
-                volume = newVolume
-                val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume.toInt(), 0)
-                preferencesManager.lastVolume = newVolume / maxVolume
             },
             onCenterViewToggle = { /* 在 PlayerScreen 内部处理 */ },
             onPlaylistToggle = { showPlaylistPanel = !showPlaylistPanel },

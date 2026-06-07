@@ -142,16 +142,18 @@ fun PlaylistPanel(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                        .height(48.dp)
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TabButton("播放列表", currentTab == PlaylistTab.PLAYING) {
+                    TabButton("📋 播放列表", currentTab == PlaylistTab.PLAYING) {
                         onTabChange(PlaylistTab.PLAYING)
                     }
-                    TabButton("歌单", currentTab == PlaylistTab.PLAYLISTS) {
+                    TabButton("📁 歌单", currentTab == PlaylistTab.PLAYLISTS) {
                         onTabChange(PlaylistTab.PLAYLISTS)
                     }
-                    TabButton("本地歌曲库", currentTab == PlaylistTab.LIBRARY) {
+                    TabButton("💿 本地歌曲库", currentTab == PlaylistTab.LIBRARY) {
                         onTabChange(PlaylistTab.LIBRARY)
                     }
                 }
@@ -245,11 +247,6 @@ fun PlaylistPanel(
                                     onDeleteClick = { name ->
                                         playlistToDelete = name
                                         showDeleteDialog = true
-                                    },
-                                    onRenameClick = { name ->
-                                        playlistToRename = name
-                                        renamePlaylistName = name
-                                        showRenameDialog = true
                                     }
                                 )
                             }
@@ -1542,8 +1539,7 @@ private fun PlaylistListContent(
     playlists: List<String>,
     onPlaylistClick: (String) -> Unit,
     onCreateClick: () -> Unit,
-    onDeleteClick: (String) -> Unit,
-    onRenameClick: (String) -> Unit
+    onDeleteClick: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // 创建歌单按钮
@@ -1554,7 +1550,7 @@ private fun PlaylistListContent(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "➕", fontSize = 20.sp)
+            Text(text = "📋", fontSize = 20.sp)
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = "创建新歌单",
@@ -1581,7 +1577,6 @@ private fun PlaylistListContent(
                     PlaylistItem(
                         name = name,
                         onClick = { onPlaylistClick(name) },
-                        onRename = { onRenameClick(name) },
                         onDelete = { onDeleteClick(name) }
                     )
                 }
@@ -1594,11 +1589,8 @@ private fun PlaylistListContent(
 private fun PlaylistItem(
     name: String,
     onClick: () -> Unit,
-    onRename: () -> Unit,
     onDelete: () -> Unit
 ) {
-    var showMenu by remember { mutableStateOf(false) }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1606,7 +1598,7 @@ private fun PlaylistItem(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = "操作", fontSize = 20.sp, color = Color(0xFF00D4AA))
+        Text(text = "📋", fontSize = 20.sp)
         Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = name,
@@ -1614,33 +1606,11 @@ private fun PlaylistItem(
             fontSize = 14.sp,
             modifier = Modifier.weight(1f)
         )
-        Box {
-            Text(
-                text = "操作",
-                fontSize = 14.sp,
-                color = Color(0xFF00D4AA),
-                modifier = Modifier.clickable { showMenu = true }
-            )
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("重命名") },
-                    onClick = {
-                        showMenu = false
-                        onRename()
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("删除", color = Color.Red) },
-                    onClick = {
-                        showMenu = false
-                        onDelete()
-                    }
-                )
-            }
-        }
+        Text(
+            text = "🗑",
+            fontSize = 16.sp,
+            modifier = Modifier.clickable { onDelete() }
+        )
     }
 }
 
