@@ -78,6 +78,7 @@ fun PlayerScreen(
     onBackFromPlaylist: (() -> Unit)? = null,
     getPlaylistSongs: ((String) -> List<Song>)? = null,
     onSetMusicDirectory: (() -> Unit)? = null,
+    playlists: List<String> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     var centerView by remember { mutableStateOf(CenterView.VINYL) }
@@ -186,13 +187,15 @@ fun PlayerScreen(
             visible = showPlaylistPanel,
             currentPlaylist = playlist,
             allSongs = librarySongs,
-            playlists = emptyList(),
+            playlists = playlists,
             currentTab = playlistTab,
             currentSongIndex = playlist.indexOf(currentSong),
             onTabChange = onPlaylistTabChange,
             onSongClick = { index ->
-                onSongClick(index)
-                onPlaylistDismiss()
+                if (playlist.isNotEmpty() && index in playlist.indices) {
+                    onSongClick(index)
+                    onPlaylistDismiss()
+                }
             },
             onDismiss = onPlaylistDismiss,
             onCreatePlaylist = onCreatePlaylist,

@@ -951,10 +951,12 @@ private fun ArtistSongsContent(
         // 歌曲列表
         if (songs.isEmpty()) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { onBack() },
                 contentAlignment = Alignment.Center
             ) {
-                Text("暂无歌曲", color = Color.Gray, fontSize = 14.sp)
+                Text("暂无歌曲，点击返回", color = Color.Gray, fontSize = 14.sp)
             }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -1033,10 +1035,12 @@ private fun AlbumSongsContent(
         // 歌曲列表
         if (songs.isEmpty()) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { onBack() },
                 contentAlignment = Alignment.Center
             ) {
-                Text("暂无歌曲", color = Color.Gray, fontSize = 14.sp)
+                Text("暂无歌曲，点击返回", color = Color.Gray, fontSize = 14.sp)
             }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {

@@ -658,7 +658,8 @@ class MainActivity : ComponentActivity() {
             getPlaylistSongs = { name -> selectedPlaylistSongs },
             onSetMusicDirectory = {
                 openDirectoryPicker()
-            }
+            },
+            playlists = playlists
         )
     }
 }
