@@ -368,13 +368,14 @@ class MainActivity : ComponentActivity() {
 
             // 保存repository引用用于搜索
             val searchRepository = repository
-            val searchDirectoryUri = musicDirectoryUri
 
             // 保存搜索函数引用（使用SAF目录扫描）
+            // 注意：使用getter函数而不是捕获值，确保每次搜索使用最新的目录设置
             searchSongsRef = { query ->
                 CoroutineScope(Dispatchers.Main).launch {
-                    val songs = if (searchDirectoryUri != null) {
-                        MediaStoreHelper.querySongsFromDirectory(this@MainActivity, searchDirectoryUri)
+                    val currentDirUri = preferencesManager.musicDirectoryUri?.let { Uri.parse(it) }
+                    val songs = if (currentDirUri != null) {
+                        MediaStoreHelper.querySongsFromDirectory(this@MainActivity, currentDirUri)
                     } else {
                         emptyList()
                     }
@@ -504,6 +505,20 @@ class MainActivity : ComponentActivity() {
                     val database = AppDatabase.getInstance(this@MainActivity)
                     database.playlistDao().getAllPlaylistsOnce().find { it.name == name }?.let {
                         database.playlistDao().deletePlaylist(it)
+                    }
+                    // 刷新歌单列表
+                    withContext(Dispatchers.Main) {
+                        val updatedPlaylists = database.playlistDao().getAllPlaylistsOnce()
+                        playlists = updatedPlaylists.map { it.name }
+                    }
+                }
+            },
+            onRenamePlaylist = { oldName, newName ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    val database = AppDatabase.getInstance(this@MainActivity)
+                    database.playlistDao().getAllPlaylistsOnce().find { it.name == oldName }?.let { playlist ->
+                        val updated = playlist.copy(name = newName, updatedAt = System.currentTimeMillis())
+                        database.playlistDao().updatePlaylist(updated)
                     }
                     // 刷新歌单列表
                     withContext(Dispatchers.Main) {

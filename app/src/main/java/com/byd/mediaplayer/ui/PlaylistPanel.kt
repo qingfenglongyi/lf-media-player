@@ -77,6 +77,7 @@ fun PlaylistPanel(
     onBackFromArtist: (() -> Unit)? = null,
     onBackFromAlbum: (() -> Unit)? = null,
     onPlaylistClick: ((String) -> Unit)? = null,
+    onRenamePlaylist: ((String, String) -> Unit)? = null,
     selectedPlaylistName: String? = null,
     onBackFromPlaylist: (() -> Unit)? = null,
     getPlaylistSongs: ((String) -> List<Song>)? = null,
@@ -87,6 +88,9 @@ fun PlaylistPanel(
     var newPlaylistName by remember { mutableStateOf("") }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var playlistToDelete by remember { mutableStateOf<String?>(null) }
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var playlistToRename by remember { mutableStateOf<String?>(null) }
+    var renamePlaylistName by remember { mutableStateOf("") }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var songToAdd by remember { mutableStateOf<Song?>(null) }
     var viewState by remember { mutableStateOf(LibraryViewState.SONGS) }
@@ -241,6 +245,11 @@ fun PlaylistPanel(
                                     onDeleteClick = { name ->
                                         playlistToDelete = name
                                         showDeleteDialog = true
+                                    },
+                                    onRenameClick = { name ->
+                                        playlistToRename = name
+                                        renamePlaylistName = name
+                                        showRenameDialog = true
                                     }
                                 )
                             }
@@ -443,6 +452,57 @@ fun PlaylistPanel(
                     },
                     dismissButton = {
                         TextButton(onClick = { showDeleteDialog = false }) {
+                            Text("取消")
+                        }
+                    }
+                )
+            }
+
+            // 重命名歌单对话框
+            if (showRenameDialog && playlistToRename != null) {
+                AlertDialog(
+                    onDismissRequest = { showRenameDialog = false },
+                    title = { Text("重命名歌单") },
+                    text = {
+                        BasicTextField(
+                            value = renamePlaylistName,
+                            onValueChange = { renamePlaylistName = it },
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (renamePlaylistName.isEmpty()) {
+                                        Text("请输入歌单名称", color = Color.Gray)
+                                    }
+                                    innerTextField()
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                .padding(12.dp)
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                playlistToRename?.let { oldName ->
+                                    if (renamePlaylistName.isNotBlank()) {
+                                        onRenamePlaylist?.invoke(oldName, renamePlaylistName)
+                                    }
+                                }
+                                showRenameDialog = false
+                                playlistToRename = null
+                                renamePlaylistName = ""
+                            }
+                        ) {
+                            Text("确定")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            showRenameDialog = false
+                            playlistToRename = null
+                            renamePlaylistName = ""
+                        }) {
                             Text("取消")
                         }
                     }
@@ -1482,7 +1542,8 @@ private fun PlaylistListContent(
     playlists: List<String>,
     onPlaylistClick: (String) -> Unit,
     onCreateClick: () -> Unit,
-    onDeleteClick: (String) -> Unit
+    onDeleteClick: (String) -> Unit,
+    onRenameClick: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // 创建歌单按钮
@@ -1517,28 +1578,67 @@ private fun PlaylistListContent(
         } else {
             LazyColumn(modifier = Modifier.weight(1f)) {
                 itemsIndexed(playlists) { _, name ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onPlaylistClick(name) }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "操作", fontSize = 20.sp, color = Color(0xFF00D4AA))
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = name,
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            text = "🗑",
-                            fontSize = 16.sp,
-                            modifier = Modifier.clickable { onDeleteClick(name) }
-                        )
-                    }
+                    PlaylistItem(
+                        name = name,
+                        onClick = { onPlaylistClick(name) },
+                        onRename = { onRenameClick(name) },
+                        onDelete = { onDeleteClick(name) }
+                    )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaylistItem(
+    name: String,
+    onClick: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = "操作", fontSize = 20.sp, color = Color(0xFF00D4AA))
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = name,
+            color = Color.White,
+            fontSize = 14.sp,
+            modifier = Modifier.weight(1f)
+        )
+        Box {
+            Text(
+                text = "操作",
+                fontSize = 14.sp,
+                color = Color(0xFF00D4AA),
+                modifier = Modifier.clickable { showMenu = true }
+            )
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("重命名") },
+                    onClick = {
+                        showMenu = false
+                        onRename()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("删除", color = Color.Red) },
+                    onClick = {
+                        showMenu = false
+                        onDelete()
+                    }
+                )
             }
         }
     }
