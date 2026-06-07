@@ -105,7 +105,7 @@ interface ConfigDao {
     @Query("SELECT value FROM config WHERE `key` = 'current_playlist'")
     suspend fun getCurrentPlaylist(): String?
 
-    @Query("SELECT value FROM config WHERE `key` = 'current_id'")
+    @Query("SELECT CAST(value AS INTEGER) FROM config WHERE `key` = 'current_id'")
     suspend fun getCurrentId(): Long?
 
     @Query("SELECT value FROM config WHERE `key` = 'play_mode'")
