@@ -733,6 +733,7 @@ private fun LibrarySongsContent(
                 Text(
                     text = "操作",
                     fontSize = 20.sp,
+                    color = Color(0xFF00D4AA),
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
                         .padding(8.dp)
@@ -1174,6 +1175,7 @@ private fun PlayingListContent(
                 Text(
                     text = "操作",
                     fontSize = 20.sp,
+                    color = Color(0xFF00D4AA),
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
                         .padding(8.dp)
@@ -1434,6 +1436,7 @@ private fun MultiSelectPlaylistContent(
                 Text(
                     text = "操作",
                     fontSize = 20.sp,
+                    color = Color(0xFF00D4AA),
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
                         .padding(8.dp)
@@ -1668,6 +1671,7 @@ private fun LibraryMultiSelectContent(
                 Text(
                     text = "操作",
                     fontSize = 20.sp,
+                    color = Color(0xFF00D4AA),
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
                         .padding(8.dp)
