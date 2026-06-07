@@ -428,6 +428,21 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // 重命名歌单函数
+        fun renamePlaylist(oldName: String, newName: String) {
+            CoroutineScope(Dispatchers.IO).launch {
+                val database = AppDatabase.getInstance(this@MainActivity)
+                database.playlistDao().getAllPlaylistsOnce().find { it.name == oldName }?.let { playlist ->
+                    val updated = playlist.copy(name = newName, updatedAt = System.currentTimeMillis())
+                    database.playlistDao().updatePlaylist(updated)
+                }
+                withContext(Dispatchers.Main) {
+                    val updatedPlaylists = database.playlistDao().getAllPlaylistsOnce()
+                    playlists = updatedPlaylists.map { it.name }
+                }
+            }
+        }
+
         // 歌曲变化时重新加载歌词
         LaunchedEffect(currentSong) {
             currentSong?.let { song ->
@@ -505,20 +520,6 @@ class MainActivity : ComponentActivity() {
                     val database = AppDatabase.getInstance(this@MainActivity)
                     database.playlistDao().getAllPlaylistsOnce().find { it.name == name }?.let {
                         database.playlistDao().deletePlaylist(it)
-                    }
-                    // 刷新歌单列表
-                    withContext(Dispatchers.Main) {
-                        val updatedPlaylists = database.playlistDao().getAllPlaylistsOnce()
-                        playlists = updatedPlaylists.map { it.name }
-                    }
-                }
-            },
-            onRenamePlaylist = { oldName, newName ->
-                CoroutineScope(Dispatchers.IO).launch {
-                    val database = AppDatabase.getInstance(this@MainActivity)
-                    database.playlistDao().getAllPlaylistsOnce().find { it.name == oldName }?.let { playlist ->
-                        val updated = playlist.copy(name = newName, updatedAt = System.currentTimeMillis())
-                        database.playlistDao().updatePlaylist(updated)
                     }
                     // 刷新歌单列表
                     withContext(Dispatchers.Main) {
@@ -691,7 +692,7 @@ class MainActivity : ComponentActivity() {
                 openDirectoryPicker()
             },
             playlists = playlists,
-            onRenamePlaylist = onRenamePlaylist
+            onRenamePlaylist = { oldName, newName -> renamePlaylist(oldName, newName) }
         )
     }
 }
