@@ -32,6 +32,10 @@ class PreferencesManager(context: Context) {
         get() = prefs.getString(KEY_MUSIC_DIRECTORY_URI, null)
         set(value) = prefs.edit { putString(KEY_MUSIC_DIRECTORY_URI, value) }
 
+    var isFirstLaunch: Boolean
+        get() = prefs.getBoolean(KEY_FIRST_LAUNCH, true)
+        set(value) = prefs.edit { putBoolean(KEY_FIRST_LAUNCH, value) }
+
     fun clear() {
         prefs.edit { clear() }
     }
@@ -44,5 +48,6 @@ class PreferencesManager(context: Context) {
         private const val KEY_VOLUME = "volume"
         private const val KEY_PLAYLIST_PATH = "last_playlist_path"
         private const val KEY_MUSIC_DIRECTORY_URI = "music_directory_uri"
+        private const val KEY_FIRST_LAUNCH = "first_launch"
     }
 }

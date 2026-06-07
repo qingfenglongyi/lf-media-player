@@ -348,11 +348,17 @@ class MainActivity : ComponentActivity() {
             val playlistEntities = database.playlistDao().getAllPlaylistsOnce()
             playlists = playlistEntities.map { it.name }
 
-            if (playlist.isNotEmpty()) {
+            // 仅在非首次启动时恢复播放状态（避免卸载重装后自动播放）
+            if (!preferencesManager.isFirstLaunch && playlist.isNotEmpty()) {
                 val startIndex = preferencesManager.lastPlayedSongId.let { lastId ->
                     playlist.indexOfFirst { it.id == lastId }.takeIf { it >= 0 } ?: 0
                 }
                 manager.setPlaylist(playlist, startIndex)
+                Logger.i(TAG, "恢复播放列表: index=$startIndex")
+            } else {
+                // 首次启动，标记并等待用户主动播放
+                preferencesManager.isFirstLaunch = false
+                Logger.i(TAG, "首次启动，不自动恢复播放状态")
             }
 
             // 音量
@@ -362,14 +368,24 @@ class MainActivity : ComponentActivity() {
 
             // 保存repository引用用于搜索
             val searchRepository = repository
+            val searchDirectoryUri = musicDirectoryUri
 
-            // 保存搜索函数引用
+            // 保存搜索函数引用（使用SAF目录扫描）
             searchSongsRef = { query ->
                 CoroutineScope(Dispatchers.Main).launch {
-                    playlist = if (query.isBlank()) {
-                        searchRepository.getAllSongs()
+                    val songs = if (searchDirectoryUri != null) {
+                        MediaStoreHelper.querySongsFromDirectory(this@MainActivity, searchDirectoryUri)
                     } else {
-                        searchRepository.searchSongs(query)
+                        emptyList()
+                    }
+                    playlist = if (query.isBlank()) {
+                        songs
+                    } else {
+                        songs.filter {
+                            it.title.contains(query, ignoreCase = true) ||
+                            it.artist.contains(query, ignoreCase = true) ||
+                            it.album.contains(query, ignoreCase = true)
+                        }
                     }
                 }
             }
