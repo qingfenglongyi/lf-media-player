@@ -471,8 +471,6 @@ fun PlaylistPanel(
                                             .padding(vertical = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(text = "操作", fontSize = 16.sp, color = Color(0xFF00D4AA))
-                                        Spacer(modifier = Modifier.width(12.dp))
                                         Text(text = playlistName, color = Color.White, fontSize = 14.sp)
                                     }
                                 }
