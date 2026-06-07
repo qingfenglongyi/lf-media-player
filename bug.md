@@ -35,3 +35,4 @@
 - 【已修复】首次启动自动搜索本地音乐 - 只有设置音乐目录后才自动加载歌曲
 - 【已修复】歌单删除后列表不刷新 - 在onDeletePlaylist中添加刷新逻辑和getAllPlaylistsOnce()
 - 【已修复】歌曲库界面显示异常 - 修复PlaylistPanel中viewState初始化逻辑，使用LaunchedEffect同时检查selectedArtist和selectedAlbum
+- 【已修复】KSP编译错误：ConfigDao getCurrentId返回Long但value列是String类型 - 使用CAST(value AS INTEGER)进行类型转换
