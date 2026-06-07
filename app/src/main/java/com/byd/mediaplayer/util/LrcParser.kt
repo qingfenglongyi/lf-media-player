@@ -289,15 +289,55 @@ object LrcParser {
     fun parseLrcFromUri(context: Context, uri: Uri): Lyrics? {
         return try {
             Logger.d(TAG, "通过Uri解析歌词: $uri")
+            // 先将内容读入字节数组，然后使用parseFile的多种编码检测逻辑
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { reader ->
-                    val content = reader.readText()
-                    Logger.d(TAG, "通过Uri读取成功，内容长度: ${content.length} 字符")
-                    return Lyrics.parse(content)
+                val bytes = inputStream.readBytes()
+                Logger.d(TAG, "通过Uri读取成功，字节长度: ${bytes.size}")
+
+                // 尝试多种编码
+                val encodings = listOf("UTF-8", "GB18030", "GBK", "BIG5", "ISO-8859-1")
+                var bestLyrics: Lyrics? = null
+                var bestScore = -1
+
+                for (encoding in encodings) {
+                    try {
+                        val content = String(bytes, Charset.forName(encoding))
+                        val lyrics = Lyrics.parse(content)
+                        val lineCount = lyrics?.lines?.size ?: 0
+
+                        val hasGarbledChars = content.contains('\uFFFD')
+                        val chineseCharCount = content.toCharArray().count {
+                            it in '\u4E00'..'\u9FFF' || it in '\u3400'..'\u4DBF'
+                        }
+                        val chineseRatio = chineseCharCount.toFloat() / content.length.coerceAtLeast(1)
+                        val isGarbled = hasGarbledChars || (chineseRatio < 0.1 && chineseCharCount > 10)
+
+                        var score = if (isGarbled) -1000 else 0
+                        score += lineCount * 10
+                        score += (chineseRatio * 100).toInt()
+
+                        Logger.d(TAG, "编码 $encoding 解析出 $lineCount 行, 乱码=$isGarbled, 汉字比例=${String.format("%.2f", chineseRatio)}, score=$score")
+
+                        if (score > bestScore) {
+                            bestScore = score
+                            bestLyrics = lyrics
+                        }
+                    } catch (e: Exception) {
+                        Logger.d(TAG, "编码 $encoding 解析异常: ${e.message}")
+                    }
                 }
+
+                if (bestLyrics != null && bestScore > -1000) {
+                    Logger.i(TAG, "歌词解析完成，最佳编码score=$bestScore")
+                    bestLyrics
+                } else {
+                    Logger.e(TAG, "所有编码尝试失败或存在乱码")
+                    null
+                }
+            } ?: run {
+                Logger.w(TAG, "无法打开Uri: $uri")
+                null
             }
-            Logger.w(TAG, "无法打开Uri: $uri")
-            null
         } catch (e: Exception) {
             Logger.e(TAG, "通过Uri解析歌词失败: $uri", e)
             null
