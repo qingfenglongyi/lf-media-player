@@ -102,41 +102,90 @@ lf-media-player/
 ├── app/
 │   └── src/main/
 │       ├── java/com/byd/mediaplayer/
-│       │   ├── MainActivity.kt          # 主入口
-│       │   ├── player/                   # 播放器相关
-│       │   │   ├── PlayerService.kt      # Foreground Service
-│       │   │   ├── PlayerManager.kt     # ExoPlayer 管理
-│       │   │   └── MediaSessionManager.kt
-│       │   ├── ui/                      # UI 层
-│       │   │   ├── PlayerScreen.kt      # 播放界面
-│       │   │   ├── PlaylistPanel.kt     # 播放列表面板
-│       │   │   ├── LibraryScreen.kt     # 歌曲库
-│       │   │   └── PlaylistScreen.kt    # 歌单管理
-│       │   ├── data/                    # 数据层
-│       │   │   ├── MusicRepository.kt  # 音乐仓库
-│       │   │   ├── MediaStoreHelper.kt  # MediaStore 查询
+│       │   ├── MainActivity.kt          # 主入口，活动管理器
+│       │   │                               # 负责生命周期管理、权限请求、服务绑定、状态同步
+│       │   ├── MainApplication.kt       # 应用启动类
+│       │   │                               # 初始化日志系统
+│       │   │
+│       │   ├── player/                   # 播放器核心模块
+│       │   │   ├── PlayerManager.kt     # ExoPlayer 管理器
+│       │   │   │                           # 封装播放控制（播放/暂停/上下曲）
+│       │   │   │                           # 管理播放列表和播放模式（列表循环/单曲循环/随机）
+│       │   │   │                           # 提供播放状态监听器接口
+│       │   │   ├── PlayerService.kt      # 前台播放服务
+│       │   │   │                           # 以前台服务运行，维持后台播放
+│       │   │   │                           # 管理通知栏媒体控件
+│       │   │   │                           # 处理系统媒体按钮指令
+│       │   │   └── MediaSessionManager.kt # 媒体会话管理
+│       │   │                                   # 同步锁屏播放信息
+│       │   │                                   # 支持车载/耳机线控
+│       │   │
+│       │   ├── ui/                        # UI 层（Jetpack Compose）
+│       │   │   ├── PlayerScreen.kt       # 播放主界面
+│       │   │   │                               # 包含歌曲信息、转盘/歌词切换
+│       │   │   │                               # 进度条、播放控制按钮
+│       │   │   │                               # 自适应横竖屏布局
+│       │   │   ├── PlaylistPanel.kt       # 播放列表面板
+│       │   │   │                               # 三个Tab：播放列表/歌单/歌曲库
+│       │   │   │                               # 支持多选模式批量操作
+│       │   │   │                               # 搜索和分类浏览（艺术家/专辑）
+│       │   │   ├── VinylView.kt           # 黑胶唱片动画
+│       │   │   │                               # 旋转动画效果，播放时旋转
+│       │   │   │                               # 点击切换到歌词视图
+│       │   │   └── LyricView.kt            # 歌词滚动视图
+│       │   │                                   # 根据播放时间高亮当前行
+│       │   │                                   # 自动滚动到当前行
+│       │   │
+│       │   ├── data/                      # 数据层
+│       │   │   ├── MusicRepository.kt      # 音乐数据仓库
+│       │   │   │                               # 统一管理MediaStore和数据库
+│       │   │   │                               # 处理歌曲隐藏/显示
+│       │   │   │                               # 保存和恢复播放列表
+│       │   │   ├── MediaStoreHelper.kt    # MediaStore 查询帮助类
+│       │   │   │                               # 从系统MediaStore查询歌曲
+│       │   │   │                               # SAF目录扫描支持
+│       │   │   │                               # 支持按艺术家/专辑/关键词搜索
 │       │   │   └── database/
-│       │   │       ├── AppDatabase.kt
-│       │   │       ├── SongDao.kt
-│       │   │       └── PlaylistDao.kt
-│       │   ├── model/                   # 数据模型
-│       │   │   ├── Song.kt
-│       │   │   ├── Playlist.kt
-│       │   │   └── PlayMode.kt
-│       │   └── util/                    # 工具类
-│       │       ├── LrcParser.kt         # 歌词解析
-│       │       └── PreferencesManager.kt
-│       ├── res/
-│       │   ├── layout/
-│       │   ├── values/
-│       │   └── drawable/
-│       └── AndroidManifest.xml
-├── build.gradle.kts
-├── settings.gradle.kts
-├── gradle.properties
-└── .github/
-    └── workflows/
-        └── build.yml                    # GitHub Actions 编译配置
+│       │   │       ├── AppDatabase.kt      # Room 数据库实例
+│       │   │       │                               # 单例模式管理数据库
+│       │   │       └── Dao.kt              # 数据访问接口
+│       │   │                                       # PlaylistDao：歌单CRUD
+│       │   │                                       # SongDao：歌曲缓存和隐藏
+│       │   │                                       # ConfigDao：键值对配置存储
+│       │   │
+│       │   ├── model/                      # 数据模型
+│       │   │   ├── Song.kt                 # 歌曲数据类
+│       │   │   │                               # 包含：id、title、artist、album
+│       │   │   │                               # duration、uri、path
+│       │   │   │                               # PlayMode 枚举：列表循环/单曲循环/随机
+│       │   │   │                               # PlayerState 播放器状态
+│       │   │   ├── Playlist.kt              # 播放列表实体
+│       │   │   │                               # Room 实体：Playlist、PlaylistSong
+│       │   │   │                               # SongEntity：歌曲缓存
+│       │   │   │                               # Config：配置项存储
+│       │   │   └── LyricLine.kt             # 歌词数据模型
+│       │   │                                       # LyricLine：单行歌词（时间+文本）
+│       │   │                                       # Lyrics：歌词集合，含LRC解析
+│       │   │
+│       │   └── util/                        # 工具类
+│       │       ├── Logger.kt                # 日志工具
+│       │       │                                   # 支持 DEBUG/INFO/WARN/ERROR 级别
+│       │       │                                   # 日志保存到 /sdcard/documents/logs
+│       │       ├── PreferencesManager.kt  # 偏好设置管理
+│       │       │                                   # SharedPreferences 封装
+│       │       │                                   # 保存播放位置、模式、目录等
+│       │       └── LrcParser.kt            # 歌词解析器
+│       │                                           # 支持多种编码：UTF-8/GB18030/GBK
+│       │                                           # 支持多种搜索方式：SAF/直接访问/MediaStore
+│       │                                           # 自动检测最佳编码
+│       │
+│       ├── res/                            # 资源目录
+│       └── AndroidManifest.xml             # 应用清单
+│
+├── docs/                                    # 文档目录
+├── bug.md                                   # Bug 记录
+├── error.md                                 # 错误日志
+└── CLAUDE.md                               # Claude Code 项目指引
 ```
 
 ## 编译方式

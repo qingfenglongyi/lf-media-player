@@ -1,5 +1,22 @@
 package com.byd.mediaplayer
 
+/**
+ * 本文件是本地MP3音乐播放器的主活动（MainActivity）
+ *
+ * 功能概述：
+ * 1. 应用程序的入口点，负责初始化UI和绑定播放器服务
+ * 2. 管理播放列表、歌单和歌曲库的数据
+ * 3. 处理权限请求（存储权限、通知权限等）
+ * 4. 协调UI和播放器服务之间的状态同步
+ * 5. 支持从SAF（Storage Access Framework）选择音乐目录
+ *
+ * 架构说明：
+ * - 采用Jetpack Compose构建响应式UI
+ * - 使用StateFlow和Compose状态管理播放状态
+ * - 通过ServiceConnection绑定PlayerService获取播放器服务
+ * - 使用协程处理异步操作（如数据库操作、文件扫描等）
+ */
+
 import android.Manifest
 import android.content.ComponentName
 import android.content.Context

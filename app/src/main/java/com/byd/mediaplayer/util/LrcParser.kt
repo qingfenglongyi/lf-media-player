@@ -11,15 +11,30 @@ import java.io.File
 import java.io.InputStreamReader
 import java.nio.charset.Charset
 
+/**
+ * 歌词解析器
+ * 负责从各种来源解析LRC格式歌词文件
+ *
+ * 支持的歌词搜索方式：
+ * 1. SAF目录搜索（Android 10+推荐）
+ * 2. 直接文件访问
+ * 3. 音乐文件同目录搜索
+ * 4. MediaStore查询
+ *
+ * 支持多种字符编码：UTF-8, GB18030, GBK, BIG5, ISO-8859-1
+ * 自动检测并选择最佳编码
+ */
 object LrcParser {
 
     private const val TAG = "LrcParser"
 
     /**
-     * 解析歌词，支持指定目录限制
-     * @param context Context
+     * 解析歌词，支持多种搜索方式
+     *
+     * @param context Android上下文
      * @param musicPath 音乐文件路径或URI
      * @param musicDirectoryUri 可选的目录URI，用于限制歌词搜索范围（使用SAF）
+     * @return 解析后的Lyrics对象，如果未找到返回null
      */
     fun parseLrc(context: Context, musicPath: String, musicDirectoryUri: Uri? = null): Lyrics? {
         Logger.i(TAG, "开始解析歌词，音乐路径: $musicPath, 目录限制: $musicDirectoryUri")
@@ -65,6 +80,7 @@ object LrcParser {
 
     /**
      * 通过SAF在指定目录中搜索歌词文件
+     * 适用于Android 10+的Scoped Storage
      */
     private fun trySearchLrcInSafDirectory(context: Context, musicPath: String, directoryUri: Uri): Lyrics? {
         return try {
@@ -73,9 +89,11 @@ object LrcParser {
                 return null
             }
 
+            // 从音乐路径提取文件名（不含扩展名）
             val musicFileName = Uri.parse(musicPath).lastPathSegment?.substringBeforeLast(".") ?: return null
             Logger.d(TAG, "SAF目录搜索，文件名: $musicFileName")
 
+            // 在目录中递归搜索
             searchLrcFileInDirectory(context, documentFile, musicFileName)
         } catch (e: Exception) {
             Logger.e(TAG, "SAF目录搜索异常: ${e.message}", e)
@@ -83,15 +101,21 @@ object LrcParser {
         }
     }
 
+    /**
+     * 在DocumentFile目录中递归搜索歌词文件
+     */
     private fun searchLrcFileInDirectory(context: Context, dir: DocumentFile, musicFileName: String): Lyrics? {
         val files: Array<DocumentFile>? = dir.listFiles() ?: return null
         if (files == null) return null
+
         for (file in files) {
             if (file.isDirectory) {
+                // 递归搜索子目录
                 val result = searchLrcFileInDirectory(context, file, musicFileName)
                 if (result != null) return result
             } else if (file.isFile) {
                 val name = file.name ?: continue
+                // 检查文件名是否匹配且扩展名为.lrc
                 if (name.startsWith(musicFileName, ignoreCase = true) &&
                     (name.endsWith(".lrc", true) || name.endsWith(".LRC", true))) {
                     Logger.d(TAG, "SAF找到歌词文件: ${file.uri}")
@@ -102,6 +126,9 @@ object LrcParser {
         return null
     }
 
+    /**
+     * 尝试直接访问文件
+     */
     private fun tryDirectFileAccess(lrcPath: String): Lyrics? {
         return try {
             val file = File(lrcPath)
@@ -118,6 +145,9 @@ object LrcParser {
         }
     }
 
+    /**
+     * 在音乐文件所在目录搜索歌词
+     */
     private fun trySearchInMusicDirectory(musicPath: String): Lyrics? {
         return try {
             val musicFile = File(musicPath)
@@ -131,6 +161,7 @@ object LrcParser {
             val musicName = musicFile.nameWithoutExtension
             Logger.d(TAG, "在目录 ${parentDir.absolutePath} 中搜索歌词，前缀: $musicName")
 
+            // 搜索匹配的lrc文件
             val lrcFiles = parentDir.listFiles { _, name ->
                 name.startsWith(musicName, ignoreCase = true) &&
                 (name.endsWith(".lrc", ignoreCase = true) || name.endsWith(".LRC", ignoreCase = true))
@@ -154,6 +185,9 @@ object LrcParser {
         }
     }
 
+    /**
+     * 通过MediaStore查询同目录的lrc文件
+     */
     private fun tryMediaStoreQuery(context: Context, musicPath: String): Lyrics? {
         return try {
             // 从路径中提取目录
@@ -162,7 +196,7 @@ object LrcParser {
 
             Logger.d(TAG, "通过MediaStore搜索目录: $parentDir")
 
-            // 查询该目录下的lrc文件
+            // 构建查询
             val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
             } else {
@@ -176,6 +210,7 @@ object LrcParser {
                 MediaStore.Files.FileColumns.SIZE
             )
 
+            // 查询该目录下的lrc文件
             val selection = "${MediaStore.Files.FileColumns.DATA} LIKE ? AND (" +
                     "${MediaStore.Files.FileColumns.DATA} LIKE '%.lrc' OR " +
                     "${MediaStore.Files.FileColumns.DATA} LIKE '%.LRC')"
@@ -218,6 +253,12 @@ object LrcParser {
         }
     }
 
+    /**
+     * 从Assets资源中解析歌词
+     * @param context Android上下文
+     * @param fileName assets中的文件名
+     * @return 解析后的Lyrics对象
+     */
     fun parseLrcFromAssets(context: Context, fileName: String): Lyrics? {
         return try {
             Logger.d(TAG, "从Assets解析歌词: $fileName")
@@ -229,10 +270,17 @@ object LrcParser {
         }
     }
 
+    /**
+     * 解析LRC歌词文件
+     * 自动尝试多种编码，选择最佳结果
+     *
+     * @param file LRC歌词文件
+     * @return 解析后的Lyrics对象
+     */
     private fun parseFile(file: File): Lyrics? {
         return try {
             Logger.d(TAG, "解析歌词文件: ${file.absolutePath}")
-            // 尝试多种编码
+            // 尝试的编码列表（按优先级排序）
             val encodings = listOf("UTF-8", "GB18030", "GBK", "BIG5", "ISO-8859-1")
             var bestLyrics: Lyrics? = null
             var bestScore = -1
@@ -285,7 +333,13 @@ object LrcParser {
         }
     }
 
-    // 通过Uri读取歌词文件（用于Content URI访问）
+    /**
+     * 通过Uri解析歌词文件（用于Content URI访问，如SAF）
+     *
+     * @param context Android上下文
+     * @param uri 歌词文件的Content URI
+     * @return 解析后的Lyrics对象
+     */
     fun parseLrcFromUri(context: Context, uri: Uri): Lyrics? {
         return try {
             Logger.d(TAG, "通过Uri解析歌词: $uri")
@@ -305,6 +359,7 @@ object LrcParser {
                         val lyrics = Lyrics.parse(content)
                         val lineCount = lyrics?.lines?.size ?: 0
 
+                        // 乱码检测
                         val hasGarbledChars = content.contains('\uFFFD')
                         val chineseCharCount = content.toCharArray().count {
                             it in '\u4E00'..'\u9FFF' || it in '\u3400'..'\u4DBF'
