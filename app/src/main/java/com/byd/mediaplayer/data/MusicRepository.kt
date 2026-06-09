@@ -222,7 +222,11 @@ class MusicRepository(private val context: Context) {
             }.filter { it.id !in hiddenSongIds }  // 过滤隐藏歌曲
 
             // 恢复索引和播放模式
-            val restoredIndex = indexConfig?.value?.toIntOrNull()?.coerceIn(0, restoredPlaylist.size - 1) ?: 0
+            val restoredIndex = if (restoredPlaylist.isNotEmpty()) {
+                indexConfig?.value?.toIntOrNull()?.coerceIn(0, (restoredPlaylist.size - 1).coerceAtLeast(0)) ?: 0
+            } else {
+                0
+            }
             val playMode = modeConfig?.value ?: "LIST_LOOP"
 
             Logger.i(TAG, "播放列表恢复成功: ${restoredPlaylist.size}首, index=$restoredIndex, mode=$playMode")

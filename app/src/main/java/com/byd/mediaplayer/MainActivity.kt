@@ -142,20 +142,20 @@ class MainActivity : ComponentActivity() {
 
         Logger.d(TAG, "MainActivity onCreate - setContent前")
         setContent {
-            Logger.d(TAG, "PlayerScreenWithState - 开始渲染")
+            // Logger.d(TAG, "PlayerScreenWithState - 开始渲染")
             MaterialTheme {
-                Logger.d(TAG, "PlayerScreenWithState - Surface前")
+                // Logger.d(TAG, "PlayerScreenWithState - Surface前")
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Logger.d(TAG, "PlayerScreenWithState - 调用前")
+                    // Logger.d(TAG, "PlayerScreenWithState - 调用前")
                     PlayerScreenWithState()
-                    Logger.d(TAG, "PlayerScreenWithState - 调用后")
+                    // Logger.d(TAG, "PlayerScreenWithState - 调用后")
                 }
-                Logger.d(TAG, "PlayerScreenWithState - Surface后")
+                // Logger.d(TAG, "PlayerScreenWithState - Surface后")
             }
-            Logger.d(TAG, "PlayerScreenWithState - MaterialTheme后")
+            // Logger.d(TAG, "PlayerScreenWithState - MaterialTheme后")
         }
         Logger.d(TAG, "MainActivity onCreate - setContent后")
 
@@ -325,7 +325,7 @@ class MainActivity : ComponentActivity() {
             directoryPickerLauncher.launch(intent)
         }
 
-        Logger.d(TAG, "PlayerScreenWithState - 初始化完成，开始LaunchedEffect")
+        // // Logger.d(TAG, "PlayerScreenWithState - 初始化完成，开始LaunchedEffect")
 
         LaunchedEffect(playerService) {
             while (playerService == null) {
@@ -339,11 +339,15 @@ class MainActivity : ComponentActivity() {
             preferencesManager.musicDirectoryUri?.let { uriString ->
                 try {
                     musicDirectoryUri = Uri.parse(uriString)
-                    Logger.d(TAG, "加载音乐目录: $musicDirectoryUri")
                 } catch (e: Exception) {
                     Logger.e(TAG, "解析音乐目录URI失败: ${e.message}")
                 }
             }
+
+            // 加载歌单
+            val database = AppDatabase.getInstance(this@MainActivity)
+            val playlistEntities = database.playlistDao().getAllPlaylistsOnce()
+            playlists = playlistEntities.map { it.name }
 
             // 加载歌曲到歌曲库（只有设置了音乐目录才自动加载）
             if (musicDirectoryUri != null) {
@@ -366,11 +370,6 @@ class MainActivity : ComponentActivity() {
                 artists = emptyList()
                 albums = emptyList()
             }
-
-            // 加载歌单
-            val database = AppDatabase.getInstance(this@MainActivity)
-            val playlistEntities = database.playlistDao().getAllPlaylistsOnce()
-            playlists = playlistEntities.map { it.name }
 
             // 仅在非首次启动时恢复播放状态（避免卸载重装后自动播放）
             if (!preferencesManager.isFirstLaunch && playlist.isNotEmpty()) {
@@ -396,7 +395,9 @@ class MainActivity : ComponentActivity() {
             // 保存搜索函数引用（使用SAF目录扫描）
             // 注意：使用getter函数而不是捕获值，确保每次搜索使用最新的目录设置
             searchSongsRef = { query ->
-                CoroutineScope(Dispatchers.Main).launch {
+                // 防抖机制：使用LaunchedEffect来执行搜索，避免频繁搜索
+                kotlinx.coroutines.launch {
+                    delay(300) // 等待300ms后执行搜索，避免频繁搜索
                     val currentDirUri = preferencesManager.musicDirectoryUri?.let { Uri.parse(it) }
                     val songs = if (currentDirUri != null) {
                         MediaStoreHelper.querySongsFromDirectory(this@MainActivity, currentDirUri)
@@ -475,11 +476,13 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // 播放模式变化时更新状态
+        // 从LaunchedEffect中同步播放模式到UI状态
         LaunchedEffect(playerService) {
+            while (playerService == null) {
+                delay(100)
+            }
             val service = playerService ?: return@LaunchedEffect
-            val manager = service.getPlayerManager()
-            playMode = manager.playMode
+            playMode = service.getPlayerManager().playMode
         }
 
         PlayerScreen(

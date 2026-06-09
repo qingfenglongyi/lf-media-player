@@ -126,7 +126,7 @@ data class Lyrics(
                 val centiseconds = parts[2].take(2).padEnd(2, '0').toLongOrNull() ?: return null
                 // 计算总毫秒数：分钟*60 + 秒 = 总秒数，再*1000 + 厘秒*10
                 val timeMs = (minutes * 60 + seconds) * 1000 + centiseconds * 10
-                Logger.v(TAG, "解析时间标签: $tag -> ${timeMs}ms")
+                // Logger.v(TAG, "解析时间标签: $tag -> ${timeMs}ms")
                 return timeMs
             }
             Logger.w(TAG, "无法解析时间标签: $tag")
