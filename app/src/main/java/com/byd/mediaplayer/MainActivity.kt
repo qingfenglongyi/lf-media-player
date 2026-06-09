@@ -395,8 +395,8 @@ class MainActivity : ComponentActivity() {
             // 保存搜索函数引用（使用SAF目录扫描）
             // 注意：使用getter函数而不是捕获值，确保每次搜索使用最新的目录设置
             searchSongsRef = { query ->
-                // 防抖机制：使用LaunchedEffect来执行搜索，避免频繁搜索
-                kotlinx.coroutines.launch {
+                // 防抖机制：延迟搜索，避免频繁搜索
+                CoroutineScope(Dispatchers.Main).launch {
                     delay(300) // 等待300ms后执行搜索，避免频繁搜索
                     val currentDirUri = preferencesManager.musicDirectoryUri?.let { Uri.parse(it) }
                     val songs = if (currentDirUri != null) {
