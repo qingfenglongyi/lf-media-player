@@ -90,7 +90,14 @@ object LrcParser {
             }
 
             // 从音乐路径提取文件名（不含扩展名）
-            val musicFileName = Uri.parse(musicPath).lastPathSegment?.substringBeforeLast(".") ?: return null
+            // 如果是content URI，需要特殊处理
+            val musicFileName = if (musicPath.contains("/")) {
+                // 从路径中提取最后一个斜杠后的部分（不含扩展名）
+                musicPath.substringAfterLast("/").substringBeforeLast(".")
+            } else {
+                // 直接是文件名的情况
+                musicPath.substringBeforeLast(".")
+            }
             Logger.d(TAG, "SAF目录搜索，文件名: $musicFileName")
 
             // 在目录中递归搜索

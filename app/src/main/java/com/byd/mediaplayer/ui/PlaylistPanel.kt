@@ -1425,7 +1425,7 @@ private fun PlayingListContent(
             Row {
                 Text(
                     text = "操作",
-                    fontSize = 20.sp,
+                    fontSize = 14.sp,
                     color = Color(0xFF00D4AA),
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
@@ -1730,7 +1730,7 @@ private fun MultiSelectPlaylistContent(
             Row {
                 Text(
                     text = "操作",
-                    fontSize = 20.sp,
+                    fontSize = 14.sp,
                     color = Color(0xFF00D4AA),
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
@@ -2011,7 +2011,7 @@ private fun LibraryMultiSelectContent(
             Row {
                 Text(
                     text = "操作",
-                    fontSize = 20.sp,
+                    fontSize = 14.sp,
                     color = Color(0xFF00D4AA),
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }
