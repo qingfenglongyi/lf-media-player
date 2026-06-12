@@ -306,6 +306,7 @@ class MainActivity : ComponentActivity() {
         var selectedPlaylistName by remember { mutableStateOf<String?>(null) }
         var selectedPlaylistSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
         var musicDirectoryUri by remember { mutableStateOf<Uri?>(null) }
+        var hasInitializedSongs by remember { mutableStateOf(false) }
 
         // 监听目录选择结果
         LaunchedEffect(directoryPickerResult) {
@@ -357,8 +358,9 @@ class MainActivity : ComponentActivity() {
             val playlistEntities = database.playlistDao().getAllPlaylistsOnce()
             playlists = playlistEntities.map { it.name }
 
-            // 加载歌曲到歌曲库（只有设置了音乐目录才自动加载）
-            if (musicDirectoryUri != null) {
+            // 加载歌曲到歌曲库（只有设置了音乐目录才自动加载，只在首次初始化时执行）
+            if (musicDirectoryUri != null && !hasInitializedSongs) {
+                hasInitializedSongs = true
                 val allSongs = MediaStoreHelper.querySongsFromDirectory(this@MainActivity, musicDirectoryUri!!)
                 librarySongs = allSongs
                 playlist = allSongs
