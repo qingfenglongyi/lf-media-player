@@ -906,7 +906,7 @@ private fun LibrarySongsContent(
                 // 操作菜单按钮
                 Text(
                     text = "操作",
-                    fontSize = 20.sp,
+                    fontSize = 14.sp,
                     color = Color(0xFF00D4AA),
                     modifier = Modifier
                         .clickable { showDropdownMenu = true }

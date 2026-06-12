@@ -237,12 +237,20 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        val repository = MusicRepository.getInstance(this)
-
         CoroutineScope(Dispatchers.Main).launch {
-            val songs = repository.getAllSongs()
+            // 只从用户设置的目录扫描歌曲，不再使用系统MediaStore全量查询
+            val musicDirUri = preferencesManager.musicDirectoryUri
+            val songs = if (musicDirUri != null) {
+                Logger.d(TAG, "从用户目录加载歌曲: $musicDirUri")
+                MediaStoreHelper.querySongsFromDirectory(this@MainActivity, Uri.parse(musicDirUri))
+            } else {
+                Logger.d(TAG, "未设置音乐目录，歌曲列表为空")
+                emptyList()
+            }
+
             if (songs.isNotEmpty()) {
                 // 尝试从数据库恢复播放列表
+                val repository = MusicRepository.getInstance(this@MainActivity)
                 val restored = repository.restoreCurrentPlaylist(songs)
                 if (restored != null) {
                     val (restoredPlaylist, restoredIndex, playMode) = restored
@@ -608,8 +616,13 @@ class MainActivity : ComponentActivity() {
                     val repository = MusicRepository.getInstance(this@MainActivity)
                     repository.hideSongs(songIds)
                     withContext(Dispatchers.Main) {
-                        // 刷新歌曲库
-                        librarySongs = repository.getAllSongs()
+                        // 刷新歌曲库：从用户设置的目录扫描，不再使用系统MediaStore全量查询
+                        val musicDirUri = preferencesManager.musicDirectoryUri
+                        librarySongs = if (musicDirUri != null) {
+                            MediaStoreHelper.querySongsFromDirectory(this@MainActivity, Uri.parse(musicDirUri))
+                        } else {
+                            emptyList()
+                        }
                         playlist = librarySongs
                     }
                     Logger.i(TAG, "已从库中隐藏 ${songIds.size} 首歌曲")
