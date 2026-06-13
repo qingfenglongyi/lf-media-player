@@ -227,53 +227,27 @@ class MainActivity : ComponentActivity() {
             Logger.d(TAG, "播放列表已存在，不重新设置")
             // 手动触发状态同步
             playerManager.notifyListenersForStateSync()
+            // 恢复播放位置
+            val lastPosition = preferencesManager.lastPlayedPosition
+            if (lastPosition > 0) {
+                playerManager.seekTo(lastPosition)
+            }
             return
         }
 
-        // 首次启动时不自动恢复播放列表
+        // 首次启动时不做任何操作，等待LaunchedEffect加载歌曲
         if (preferencesManager.isFirstLaunch) {
-            Logger.i(TAG, "首次启动，loadSongsAndStartPlay中跳过恢复播放状态")
+            Logger.i(TAG, "首次启动，loadSongsAndStartPlay中跳过")
             preferencesManager.isFirstLaunch = false
             return
         }
 
-        CoroutineScope(Dispatchers.Main).launch {
-            // 只从用户设置的目录扫描歌曲，不再使用系统MediaStore全量查询
-            val musicDirUri = preferencesManager.musicDirectoryUri
-            val songs = if (musicDirUri != null) {
-                Logger.d(TAG, "从用户目录加载歌曲: $musicDirUri")
-                MediaStoreHelper.querySongsFromDirectory(this@MainActivity, Uri.parse(musicDirUri))
-            } else {
-                Logger.d(TAG, "未设置音乐目录，歌曲列表为空")
-                emptyList()
-            }
-
-            if (songs.isNotEmpty()) {
-                // 尝试从数据库恢复播放列表
-                val repository = MusicRepository.getInstance(this@MainActivity)
-                val restored = repository.restoreCurrentPlaylist(songs)
-                if (restored != null) {
-                    val (restoredPlaylist, restoredIndex, playMode) = restored
-                    playerManager.setPlaylist(restoredPlaylist, restoredIndex)
-                    playerManager.setPlayMode(try { PlayMode.valueOf(playMode) } catch (e: Exception) { PlayMode.LIST_LOOP })
-                    Logger.i(TAG, "从数据库恢复播放列表成功")
-                } else {
-                    // 没有保存的播放列表，使用旧的恢复逻辑
-                    val lastSongId = preferencesManager.lastPlayedSongId
-                    val startIndex = songs.indexOfFirst { it.id == lastSongId }.takeIf { it >= 0 } ?: 0
-                    playerManager.setPlaylist(songs, startIndex)
-
-                    val playMode = preferencesManager.lastPlayMode.let {
-                        try { PlayMode.valueOf(it) } catch (e: Exception) { PlayMode.LIST_LOOP }
-                    }
-                    playerManager.setPlayMode(playMode)
-                }
-
-                // 恢复播放位置
-                val lastPosition = preferencesManager.lastPlayedPosition
-                if (lastPosition > 0) {
-                    playerManager.seekTo(lastPosition)
-                }
+        // 歌曲加载由LaunchedEffect(playerService)统一处理
+        // 这里只恢复播放位置（如果有播放列表的话）
+        if (playerManager.playlist.isNotEmpty()) {
+            val lastPosition = preferencesManager.lastPlayedPosition
+            if (lastPosition > 0) {
+                playerManager.seekTo(lastPosition)
             }
         }
     }
@@ -306,7 +280,6 @@ class MainActivity : ComponentActivity() {
         var selectedPlaylistName by remember { mutableStateOf<String?>(null) }
         var selectedPlaylistSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
         var musicDirectoryUri by remember { mutableStateOf<Uri?>(null) }
-        var hasInitializedSongs by remember { mutableStateOf(false) }
 
         // 监听目录选择结果
         LaunchedEffect(directoryPickerResult) {
@@ -358,15 +331,14 @@ class MainActivity : ComponentActivity() {
             val playlistEntities = database.playlistDao().getAllPlaylistsOnce()
             playlists = playlistEntities.map { it.name }
 
-            // 加载歌曲到歌曲库（只有设置了音乐目录才自动加载，只在首次初始化时执行）
-            if (musicDirectoryUri != null && !hasInitializedSongs) {
-                hasInitializedSongs = true
+            // 加载歌曲到歌曲库（只有设置了音乐目录才自动加载）
+            if (musicDirectoryUri != null && librarySongs.isEmpty()) {
                 val allSongs = MediaStoreHelper.querySongsFromDirectory(this@MainActivity, musicDirectoryUri!!)
                 librarySongs = allSongs
                 playlist = allSongs
                 Logger.i(TAG, "从目录加载歌曲完成: ${allSongs.size}首")
-            } else {
-                // 首次启动或未设置目录，不自动搜索
+            } else if (musicDirectoryUri == null) {
+                // 未设置目录
                 librarySongs = emptyList()
                 playlist = emptyList()
                 Logger.i(TAG, "未设置音乐目录，等待用户设置")
