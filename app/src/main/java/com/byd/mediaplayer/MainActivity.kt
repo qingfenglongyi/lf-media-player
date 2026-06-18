@@ -203,9 +203,7 @@ class MainActivity : ComponentActivity() {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
 
-        if (allGranted) {
-            bindToService()
-        } else {
+        if (!allGranted) {
             requestPermissionLauncher.launch(permissions)
         }
     }
@@ -219,37 +217,7 @@ class MainActivity : ComponentActivity() {
     private fun loadSongsAndStartPlay() {
         val service = playerService ?: return
         service.startForegroundService()
-
-        val playerManager = service.getPlayerManager()
-
-        // 如果已经有播放列表，不重新设置（避免切换应用后从头播放）
-        if (playerManager.playlist.isNotEmpty()) {
-            Logger.d(TAG, "播放列表已存在，不重新设置")
-            // 手动触发状态同步
-            playerManager.notifyListenersForStateSync()
-            // 恢复播放位置
-            val lastPosition = preferencesManager.lastPlayedPosition
-            if (lastPosition > 0) {
-                playerManager.seekTo(lastPosition)
-            }
-            return
-        }
-
-        // 首次启动时不做任何操作，等待LaunchedEffect加载歌曲
-        if (preferencesManager.isFirstLaunch) {
-            Logger.i(TAG, "首次启动，loadSongsAndStartPlay中跳过")
-            preferencesManager.isFirstLaunch = false
-            return
-        }
-
-        // 歌曲加载由LaunchedEffect(playerService)统一处理
-        // 这里只恢复播放位置（如果有播放列表的话）
-        if (playerManager.playlist.isNotEmpty()) {
-            val lastPosition = preferencesManager.lastPlayedPosition
-            if (lastPosition > 0) {
-                playerManager.seekTo(lastPosition)
-            }
-        }
+        // 歌曲加载和播放状态恢复统一由 LaunchedEffect(playerService) 处理
     }
 
     @Composable
