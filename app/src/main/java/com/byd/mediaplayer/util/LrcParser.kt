@@ -90,13 +90,16 @@ object LrcParser {
             }
 
             // 从音乐路径提取文件名（不含扩展名）
-            // 如果是content URI，需要特殊处理
-            val musicFileName = if (musicPath.contains("/")) {
-                // 从路径中提取最后一个斜杠后的部分（不含扩展名）
+            // musicPath 可能是 content URI，需要先解码再提取
+            val musicFileName = try {
+                val uri = Uri.parse(musicPath)
+                val lastSegment = uri.lastPathSegment ?: musicPath.substringAfterLast("/")
+                val decoded = Uri.decode(lastSegment)
+                // 只取文件名部分（去掉路径前缀），再去除扩展名
+                decoded.substringAfterLast("/").substringBeforeLast(".")
+            } catch (e: Exception) {
+                // 降级处理：直接按路径处理
                 musicPath.substringAfterLast("/").substringBeforeLast(".")
-            } else {
-                // 直接是文件名的情况
-                musicPath.substringBeforeLast(".")
             }
             Logger.d(TAG, "SAF目录搜索，文件名: $musicFileName")
 
