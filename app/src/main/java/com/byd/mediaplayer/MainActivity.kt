@@ -339,19 +339,13 @@ class MainActivity : ComponentActivity() {
             // 保存搜索函数引用（使用SAF目录扫描）
             // 注意：使用getter函数而不是捕获值，确保每次搜索使用最新的目录设置
             searchSongsRef = { query ->
-                // 防抖机制：延迟搜索，避免频繁搜索
                 activityScope.launch {
-                    delay(300) // 等待300ms后执行搜索，避免频繁搜索
-                    val currentDirUri = preferencesManager.musicDirectoryUri?.let { Uri.parse(it) }
-                    val songs = if (currentDirUri != null) {
-                        MediaStoreHelper.querySongsFromDirectory(this@MainActivity, currentDirUri)
-                    } else {
-                        emptyList()
-                    }
+                    delay(300)
+                    val source = librarySongs
                     libraryDisplaySongs = if (query.isBlank()) {
-                        songs
+                        source
                     } else {
-                        songs.filter {
+                        source.filter {
                             it.title.contains(query, ignoreCase = true) ||
                             it.artist.contains(query, ignoreCase = true) ||
                             it.album.contains(query, ignoreCase = true)
@@ -512,6 +506,7 @@ class MainActivity : ComponentActivity() {
                 }
             },
             onAddSongsToPlaylist = { songs, playlistName ->
+                Logger.i(TAG, "批量添加歌曲到歌单: playlistName=$playlistName, songCount=${songs.size}")
                 activityScope.launch(Dispatchers.IO) {
                     val database = AppDatabase.getInstance(this@MainActivity)
                     try {
@@ -526,6 +521,9 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             database.playlistDao().insertPlaylistSongs(playlistSongs)
+                            Logger.i(TAG, "批量添加歌曲到歌单成功: playlistName=$playlistName, count=${songs.size}")
+                        } else {
+                            Logger.w(TAG, "批量添加歌曲到歌单失败: 未找到歌单 $playlistName")
                         }
                     } catch (e: Exception) {
                         Logger.e(TAG, "添加歌曲到歌单失败", e)
@@ -614,6 +612,7 @@ class MainActivity : ComponentActivity() {
                 }
             },
             onAddToPlaylist = { song, playlistName ->
+                Logger.i(TAG, "添加歌曲到歌单: song=${song.title}, playlistName=$playlistName")
                 activityScope.launch(Dispatchers.IO) {
                     val database = AppDatabase.getInstance(this@MainActivity)
                     val targetPlaylist = database.playlistDao().getPlaylistByName(playlistName)
@@ -625,6 +624,7 @@ class MainActivity : ComponentActivity() {
                                 position = database.playlistDao().getPlaylistSongCount(targetPlaylist.id)
                             )
                         )
+                        Logger.i(TAG, "添加歌曲到歌单成功: song=${song.title}, playlistName=$playlistName")
                         withContext(Dispatchers.Main) {
                             android.widget.Toast.makeText(
                                 this@MainActivity,
@@ -632,6 +632,8 @@ class MainActivity : ComponentActivity() {
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
                         }
+                    } else {
+                        Logger.w(TAG, "添加歌曲到歌单失败: 未找到歌单 $playlistName")
                     }
                 }
             },
@@ -667,6 +669,7 @@ class MainActivity : ComponentActivity() {
                 libraryViewState = LibraryViewState.ALBUM_LIST
             },
             onPlaylistClick = { name ->
+                Logger.i(TAG, "点击歌单: name=$name")
                 selectedPlaylistName = name
                 // 从数据库加载歌单歌曲
                 activityScope.launch(Dispatchers.IO) {

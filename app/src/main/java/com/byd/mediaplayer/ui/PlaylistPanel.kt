@@ -186,8 +186,9 @@ fun PlaylistPanel(
 
     // 初始化时检查selectedArtist/selectedAlbum是否已有值
     // 用于从其他界面跳转过来时恢复正确的视图状态
-    LaunchedEffect(selectedArtist, selectedAlbum) {
+    LaunchedEffect(selectedArtist, selectedAlbum, selectedPlaylistName) {
         when {
+            selectedPlaylistName != null -> viewState = LibraryViewState.PLAYLIST_DETAIL
             selectedArtist != null -> viewState = LibraryViewState.ARTIST_SONGS
             selectedAlbum != null -> viewState = LibraryViewState.ALBUM_SONGS
         }
@@ -203,6 +204,13 @@ fun PlaylistPanel(
     // 当selectedAlbum从有值变为null时（返回操作），同步更新视图状态
     LaunchedEffect(selectedAlbum) {
         if (selectedAlbum == null && viewState == LibraryViewState.ALBUM_SONGS) {
+            viewState = LibraryViewState.SONGS
+        }
+    }
+
+    // 当selectedPlaylistName从有值变为null时（返回操作），同步更新视图状态
+    LaunchedEffect(selectedPlaylistName) {
+        if (selectedPlaylistName == null && viewState == LibraryViewState.PLAYLIST_DETAIL) {
             viewState = LibraryViewState.SONGS
         }
     }
@@ -832,7 +840,7 @@ private fun LibraryContent(
                 LibraryViewState.ARTIST_SONGS -> {
                     val artistSongs = songs.filter { it.artist == selectedArtist }
                     ArtistSongsContent(
-                        artistName = selectedArtist ?: "",
+                        artistName = selectedArtist ?: "未知艺术家",
                         songs = artistSongs,
                         onSongClick = { index ->
                             val song = artistSongs.getOrNull(index)
@@ -840,7 +848,6 @@ private fun LibraryContent(
                         },
                         onBack = {
                             onBackFromArtist?.invoke()
-                            onViewStateChange(LibraryViewState.SONGS)
                         }
                     )
                 }
@@ -848,7 +855,7 @@ private fun LibraryContent(
                 LibraryViewState.ALBUM_SONGS -> {
                     val albumSongs = songs.filter { it.album == selectedAlbum }
                     AlbumSongsContent(
-                        albumName = selectedAlbum ?: "",
+                        albumName = selectedAlbum ?: "未知专辑",
                         songs = albumSongs,
                         onSongClick = { index ->
                             val song = albumSongs.getOrNull(index)
@@ -856,7 +863,6 @@ private fun LibraryContent(
                         },
                         onBack = {
                             onBackFromAlbum?.invoke()
-                            onViewStateChange(LibraryViewState.SONGS)
                         }
                     )
                 }
