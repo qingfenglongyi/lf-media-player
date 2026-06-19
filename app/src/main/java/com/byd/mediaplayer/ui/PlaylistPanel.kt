@@ -141,8 +141,8 @@ fun PlaylistPanel(
     onDismiss: () -> Unit,
     onCreatePlaylist: ((String) -> Unit)? = null,
     onDeletePlaylist: ((String) -> Unit)? = null,
-    onAddToPlaylist: ((Song) -> Unit)? = null,
-    onAddSongsToPlaylist: ((List<Song>) -> Unit)? = null,
+    onAddToPlaylist: ((Song, String) -> Unit)? = null,
+    onAddSongsToPlaylist: ((List<Song>, String) -> Unit)? = null,
     onAddSongsToQueue: ((List<Song>) -> Unit)? = null,
     onDeleteSongsFromPlaylist: ((List<Int>) -> Unit)? = null,
     onRemoveSongFromPlaylist: ((String, Int) -> Unit)? = null,
@@ -177,7 +177,7 @@ fun PlaylistPanel(
     var playlistToRename by remember { mutableStateOf<String?>(null) } // 待重命名的歌单名称
     var renamePlaylistName by remember { mutableStateOf("") }       // 重命名时用户输入的新名称
     var showAddToPlaylistDialog by remember { mutableStateOf(false) } // 控制"添加到歌单"对话框显示
-    var songToAdd by remember { mutableStateOf<Song?>(null) }       // 待添加到歌单的歌曲
+    var songsToAdd by remember { mutableStateOf<List<Song>>(emptyList()) }    // 待添加到歌单的歌曲列表
 
     // 当前视图状态，用于歌曲库的二级导航
     var viewState by remember { mutableStateOf(LibraryViewState.SONGS) }
@@ -283,10 +283,10 @@ fun PlaylistPanel(
                                     },
                                     // 添加选中歌曲到歌单
                                     onAddToPlaylist = { songs ->
-                                        songToAdd = songs.firstOrNull()
+                                        songsToAdd = songs
                                         showAddToPlaylistDialog = true
                                     },
-                                    isMultiSelectMode = isMultiSelectMode
+                                    isMultiSelectMode = true
                                 )
                             } else {
                                 // 普通模式下的播放列表内容
@@ -317,7 +317,7 @@ fun PlaylistPanel(
                                         selectedSongIndices = emptySet()
                                     },
                                     onAddToPlaylist = { songs ->
-                                        songToAdd = songs.firstOrNull()
+                                        songsToAdd = songs
                                         showAddToPlaylistDialog = true
                                     },
                                     isMultiSelectMode = isMultiSelectMode
@@ -349,6 +349,11 @@ fun PlaylistPanel(
                                     onDeleteClick = { name ->
                                         playlistToDelete = name
                                         showDeleteDialog = true
+                                    },
+                                    onRenameClick = { name ->
+                                        playlistToRename = name
+                                        renamePlaylistName = name
+                                        showRenameDialog = true
                                     }
                                 )
                             }
@@ -378,8 +383,8 @@ fun PlaylistPanel(
                                             onAddSongsToQueue?.invoke(songs)
                                         },
                                         onAddToPlaylist = { indices ->
-                                            val songs = indices.map { allSongs[it] }
-                                            onAddSongsToPlaylist?.invoke(songs)
+                                            songsToAdd = indices.map { allSongs[it] }
+                                            showAddToPlaylistDialog = true
                                         },
                                         onDeleteFromLibrary = { indices ->
                                             val ids = indices.map { allSongs[it].id }
@@ -423,8 +428,8 @@ fun PlaylistPanel(
                                             onAddSongsToQueue?.invoke(songsToAdd)
                                         },
                                         onAddToPlaylist = { indices ->
-                                            val songsToAdd = indices.map { allSongs[it] }
-                                            onAddSongsToPlaylist?.invoke(songsToAdd)
+                                            songsToAdd = indices.map { allSongs[it] }
+                                            showAddToPlaylistDialog = true
                                         },
                                         onDeleteFromLibrary = { indices ->
                                             val ids = indices.map { allSongs[it].id }
@@ -467,8 +472,8 @@ fun PlaylistPanel(
                                         onAddSongsToQueue?.invoke(songsToAdd)
                                     },
                                     onAddToPlaylist = { indices ->
-                                        val songsToAdd = indices.map { allSongs[it] }
-                                        onAddSongsToPlaylist?.invoke(songsToAdd)
+                                        songsToAdd = indices.map { allSongs[it] }
+                                        showAddToPlaylistDialog = true
                                     },
                                     onDeleteFromLibrary = { indices ->
                                         val ids = indices.map { allSongs[it].id }
@@ -619,7 +624,7 @@ fun PlaylistPanel(
             }
 
             // 添加歌曲到歌单对话框
-            if (showAddToPlaylistDialog && songToAdd != null) {
+            if (showAddToPlaylistDialog && songsToAdd.isNotEmpty()) {
                 AlertDialog(
                     onDismissRequest = { showAddToPlaylistDialog = false },
                     title = { Text("添加到歌单") },
@@ -635,10 +640,14 @@ fun PlaylistPanel(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clickable {
-                                                onAddToPlaylist?.invoke(songToAdd!!)
-                                                showAddToPlaylistDialog = false
-                                                songToAdd = null
-                                            }
+                                                    if (songsToAdd.size == 1) {
+                                                        onAddToPlaylist?.invoke(songsToAdd.first(), playlistName)
+                                                    } else {
+                                                        onAddSongsToPlaylist?.invoke(songsToAdd, playlistName)
+                                                    }
+                                                    showAddToPlaylistDialog = false
+                                                    songsToAdd = emptyList()
+                                                }
                                             .padding(vertical = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
@@ -653,7 +662,7 @@ fun PlaylistPanel(
                     dismissButton = {
                         TextButton(onClick = {
                             showAddToPlaylistDialog = false
-                            songToAdd = null
+                            songsToAdd = emptyList()
                         }) {
                             Text("取消")
                         }
@@ -1851,7 +1860,8 @@ private fun PlaylistListContent(
     playlists: List<String>,
     onPlaylistClick: (String) -> Unit,
     onCreateClick: () -> Unit,
-    onDeleteClick: (String) -> Unit
+    onDeleteClick: (String) -> Unit,
+    onRenameClick: ((String) -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // 创建歌单按钮
@@ -1889,7 +1899,8 @@ private fun PlaylistListContent(
                     PlaylistItem(
                         name = name,
                         onClick = { onPlaylistClick(name) },
-                        onDelete = { onDeleteClick(name) }
+                        onDelete = { onDeleteClick(name) },
+                        onRename = onRenameClick?.let { click -> { click(name) } }
                     )
                 }
             }
@@ -1910,7 +1921,8 @@ private fun PlaylistListContent(
 private fun PlaylistItem(
     name: String,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onRename: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -1927,6 +1939,16 @@ private fun PlaylistItem(
             fontSize = 14.sp,
             modifier = Modifier.weight(1f)
         )
+        // 重命名按钮
+        onRename?.let {
+            Text(
+                text = "✏️",
+                fontSize = 16.sp,
+                modifier = Modifier
+                    .clickable { it() }
+                    .padding(end = 12.dp)
+            )
+        }
         // 删除按钮
         Text(
             text = "🗑",
