@@ -644,7 +644,7 @@ fun PlaylistPanel(
                                 Text("暂无歌单，请先创建", color = Color.Gray, fontSize = 14.sp)
                             } else {
                                 // 显示所有歌单供用户选择
-                                playlists.forEach { playlistName ->
+                                playlists.forEach { (playlistName, _) ->
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -2384,6 +2384,10 @@ private fun PlaylistDetailContent(
 
     // 添加歌曲到歌单对话框
     if (showAddSongsDialog) {
+        val filteredSongs = if (addSongsSearchQuery.isBlank()) allSongs else allSongs.filter {
+            it.title.contains(addSongsSearchQuery, true) ||
+            it.artist.contains(addSongsSearchQuery, true)
+        }
         AlertDialog(
             onDismissRequest = { showAddSongsDialog = false; addSongsSelected = emptySet(); addSongsSearchQuery = "" },
             title = { Text("添加歌曲到 $playlistName") },
@@ -2396,12 +2400,8 @@ private fun PlaylistDetailContent(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    val filtered = if (addSongsSearchQuery.isBlank()) allSongs else allSongs.filter {
-                        it.title.contains(addSongsSearchQuery, true) ||
-                        it.artist.contains(addSongsSearchQuery, true)
-                    }
                     LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
-                        itemsIndexed(filtered) { index, song ->
+                        itemsIndexed(filteredSongs) { index, song ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -2438,7 +2438,7 @@ private fun PlaylistDetailContent(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val selectedSongs = addSongsSelected.map { filtered[it] }
+                    val selectedSongs = addSongsSelected.map { filteredSongs[it] }
                     if (selectedSongs.isNotEmpty()) {
                         onAddSongsToPlaylist?.invoke(selectedSongs, playlistName)
                     }

@@ -482,7 +482,7 @@ class MainActivity : ComponentActivity() {
                         // 刷新歌单列表
                         withContext(Dispatchers.Main) {
                             val updatedPlaylists = db.playlistDao().getAllPlaylistsOnce()
-                            playlists = updatedPlaylists.map { it.name to database.playlistDao().getPlaylistSongCount(it.id) }
+                            playlists = updatedPlaylists.map { it.name to db.playlistDao().getPlaylistSongCount(it.id) }
                             Logger.d(TAG, "歌单列表已刷新，数量: ${playlists.size}")
                         }
                     } catch (e: Exception) {
