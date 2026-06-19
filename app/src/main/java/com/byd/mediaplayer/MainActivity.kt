@@ -509,6 +509,8 @@ class MainActivity : ComponentActivity() {
                             libraryViewState = LibraryViewState.SONGS
                         }
                     }
+                }
+            },
             onAddSongsToPlaylist = { songs, playlistName ->
                 activityScope.launch(Dispatchers.IO) {
                     val database = AppDatabase.getInstance(this@MainActivity)
