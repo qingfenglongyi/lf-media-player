@@ -113,6 +113,7 @@ fun PlayerScreen(
     onAddToPlaylist: ((Song, String) -> Unit)? = null,
     onAddSongsToPlaylist: ((List<Song>, String) -> Unit)? = null,
     onAddSongsToQueue: ((List<Song>) -> Unit)? = null,
+    onPlayPlaylistSongs: ((List<Song>, Int) -> Unit)? = null,
     onDeleteSongsFromPlaylist: ((List<Int>) -> Unit)? = null,
     onRemoveSongFromPlaylist: ((String, Int) -> Unit)? = null,
     onDeleteSongsFromLibrary: ((List<Long>) -> Unit)? = null,
@@ -135,7 +136,7 @@ fun PlayerScreen(
     onBackFromPlaylist: (() -> Unit)? = null,
     getPlaylistSongs: ((String) -> List<Song>)? = null,
     onSetMusicDirectory: (() -> Unit)? = null,
-    playlists: List<String> = emptyList(),
+    playlists: List<Pair<String, Int>> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     // 当前中心视图状态（唱片或歌词）
@@ -242,6 +243,7 @@ fun PlayerScreen(
             onAddToPlaylist = onAddToPlaylist,
             onAddSongsToPlaylist = onAddSongsToPlaylist,
             onAddSongsToQueue = onAddSongsToQueue,
+            onPlayPlaylistSongs = onPlayPlaylistSongs,
             onDeleteSongsFromPlaylist = onDeleteSongsFromPlaylist,
             onRemoveSongFromPlaylist = onRemoveSongFromPlaylist,
             onDeleteSongsFromLibrary = onDeleteSongsFromLibrary,

@@ -133,9 +133,10 @@ fun PlaylistPanel(
     visible: Boolean,
     currentPlaylist: List<Song>,
     allSongs: List<Song>,
-    playlists: List<String>,
+    playlists: List<Pair<String, Int>>,
     currentTab: PlaylistTab,
     currentSongIndex: Int,
+    currentSong: Song? = null,
     onTabChange: (PlaylistTab) -> Unit,
     onSongClick: (Int) -> Unit,
     onDismiss: () -> Unit,
@@ -144,6 +145,7 @@ fun PlaylistPanel(
     onAddToPlaylist: ((Song, String) -> Unit)? = null,
     onAddSongsToPlaylist: ((List<Song>, String) -> Unit)? = null,
     onAddSongsToQueue: ((List<Song>) -> Unit)? = null,
+    onPlayPlaylistSongs: ((List<Song>, Int) -> Unit)? = null,
     onDeleteSongsFromPlaylist: ((List<Int>) -> Unit)? = null,
     onRemoveSongFromPlaylist: ((String, Int) -> Unit)? = null,
     onDeleteSongsFromLibrary: ((List<Long>) -> Unit)? = null,
@@ -332,11 +334,18 @@ fun PlaylistPanel(
                                 PlaylistDetailContent(
                                     playlistName = selectedPlaylistName,
                                     songs = playlistSongs,
-                                    onSongClick = onSongClick,
+                                    onSongClick = { index ->
+                                        onPlayPlaylistSongs?.invoke(playlistSongs, index)
+                                    },
                                     onBack = { onBackFromPlaylist?.invoke() },
                                     onDeleteSong = { index ->
                                         onRemoveSongFromPlaylist?.invoke(selectedPlaylistName, index)
-                                    }
+                                    },
+                                    onPlayAll = { onPlayPlaylistSongs?.invoke(playlistSongs, 0) },
+                                    onAddSongsToPlaylist = onAddSongsToPlaylist,
+                                    onAddSongsToQueue = onAddSongsToQueue,
+                                    allSongs = allSongs,
+                                    currentSong = currentSong
                                 )
                             } else {
                                 // 否则显示歌单列表
@@ -1857,7 +1866,7 @@ private fun MultiSelectPlaylistContent(
  */
 @Composable
 private fun PlaylistListContent(
-    playlists: List<String>,
+    playlists: List<Pair<String, Int>>,
     onPlaylistClick: (String) -> Unit,
     onCreateClick: () -> Unit,
     onDeleteClick: (String) -> Unit,
@@ -1895,9 +1904,10 @@ private fun PlaylistListContent(
             }
         } else {
             LazyColumn(modifier = Modifier.weight(1f)) {
-                itemsIndexed(playlists) { _, name ->
+                itemsIndexed(playlists) { _, (name, count) ->
                     PlaylistItem(
                         name = name,
+                        count = count,
                         onClick = { onPlaylistClick(name) },
                         onDelete = { onDeleteClick(name) },
                         onRename = onRenameClick?.let { click -> { click(name) } }
@@ -1920,6 +1930,7 @@ private fun PlaylistListContent(
 @Composable
 private fun PlaylistItem(
     name: String,
+    count: Int = 0,
     onClick: () -> Unit,
     onDelete: () -> Unit,
     onRename: (() -> Unit)? = null
@@ -1938,6 +1949,11 @@ private fun PlaylistItem(
             color = Color.White,
             fontSize = 14.sp,
             modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = "($count)",
+            color = Color.Gray,
+            fontSize = 13.sp
         )
         // 重命名按钮
         onRename?.let {
@@ -2152,15 +2168,36 @@ private fun PlaylistDetailContent(
     songs: List<Song>,
     onSongClick: (Int) -> Unit,
     onBack: () -> Unit,
-    onDeleteSong: ((Int) -> Unit)? = null
+    onDeleteSong: ((Int) -> Unit)? = null,
+    onPlayAll: (() -> Unit)? = null,
+    onAddSongsToPlaylist: ((List<Song>, String) -> Unit)? = null,
+    onAddSongsToQueue: ((List<Song>) -> Unit)? = null,
+    allSongs: List<Song> = emptyList(),
+    currentSong: Song? = null
 ) {
+    var detailMultiSelect by remember { mutableStateOf(false) }
+    var detailSelected by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var showAddSongsDialog by remember { mutableStateOf(false) }
+    var addSongsSearchQuery by remember { mutableStateOf("") }
+    var addSongsSelected by remember { mutableStateOf<Set<Int>>(emptySet()) }
+
+    // 排序状态
+    var sortType by remember { mutableStateOf(0) } // 0=默认 1=按标题 2=按艺术家
+    val sortedSongs = remember(songs, sortType) {
+        when (sortType) {
+            1 -> songs.sortedBy { it.title }
+            2 -> songs.sortedBy { it.artist }
+            else -> songs
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         // 返回按钮和标题栏
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onBack() }
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(text = "←", fontSize = 20.sp, color = Color(0xFF00D4AA))
@@ -2169,14 +2206,97 @@ private fun PlaylistDetailContent(
                 text = playlistName,
                 color = Color.White,
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
             )
-            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "(${songs.size})",
                 color = Color.Gray,
                 fontSize = 14.sp
             )
+        }
+
+        // 操作按钮行
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            if (onPlayAll != null) {
+                Text(
+                    text = "▶ 播放全部",
+                    color = Color(0xFF00D4AA),
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable { onPlayAll() }
+                )
+            }
+            Text(
+                text = "➕ 添加歌曲",
+                color = Color(0xFF00D4AA),
+                fontSize = 13.sp,
+                modifier = Modifier.clickable { showAddSongsDialog = true }
+            )
+            // 排序按钮
+            Text(
+                text = when (sortType) { 1 -> "排序:标题"; 2 -> "排序:艺术家"; else -> "排序:默认" },
+                color = Color.Gray,
+                fontSize = 13.sp,
+                modifier = Modifier.clickable { sortType = (sortType + 1) % 3 }
+            )
+        }
+
+        // 多选模式操作行
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (detailMultiSelect && detailSelected.isNotEmpty()) {
+                Text("已选择 ${detailSelected.size} 首", color = Color.Gray, fontSize = 12.sp)
+            } else {
+                Spacer(modifier = Modifier.width(1.dp))
+            }
+            Row {
+                if (detailMultiSelect && detailSelected.isNotEmpty()) {
+                    Text(
+                        text = "删除",
+                        color = Color.Red,
+                        fontSize = 13.sp,
+                        modifier = Modifier.clickable {
+                            detailSelected.sortedDescending().forEach { idx ->
+                                onDeleteSong?.invoke(idx)
+                            }
+                            detailSelected = emptySet()
+                            detailMultiSelect = false
+                        }
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "加入队列",
+                        color = Color(0xFF00D4AA),
+                        fontSize = 13.sp,
+                        modifier = Modifier.clickable {
+                            val selectedSongs = detailSelected.map { sortedSongs[it] }
+                            onAddSongsToQueue?.invoke(selectedSongs)
+                            detailSelected = emptySet()
+                            detailMultiSelect = false
+                        }
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                }
+                Text(
+                    text = if (detailMultiSelect) "取消选择" else "选择",
+                    color = Color.Gray,
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable {
+                        detailMultiSelect = !detailMultiSelect
+                        detailSelected = emptySet()
+                    }
+                )
+            }
         }
 
         Divider(color = Color.Gray.copy(alpha = 0.2f))
@@ -2191,20 +2311,46 @@ private fun PlaylistDetailContent(
             }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                itemsIndexed(songs) { index, song ->
+                itemsIndexed(sortedSongs) { index, song ->
+                    val isCurrentSong = currentSong?.id == song.id
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSongClick(index) }
+                            .clickable {
+                                if (detailMultiSelect) {
+                                    detailSelected = if (detailSelected.contains(index)) {
+                                        detailSelected - index
+                                    } else {
+                                        detailSelected + index
+                                    }
+                                } else {
+                                    onSongClick(songs.indexOf(song))
+                                }
+                            }
+                            .background(if (detailSelected.contains(index)) Color(0xFF2A2A4E) else if (isCurrentSong) Color(0xFF2A2A4E) else Color.Transparent)
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (detailMultiSelect) {
+                            Checkbox(
+                                checked = detailSelected.contains(index),
+                                onCheckedChange = {
+                                    detailSelected = if (detailSelected.contains(index)) {
+                                        detailSelected - index
+                                    } else {
+                                        detailSelected + index
+                                    }
+                                },
+                                colors = CheckboxDefaults.colors(checkedColor = Color(0xFF00D4AA))
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
                         Text(text = "💿", fontSize = 16.sp)
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = song.title,
-                                color = Color.White,
+                                color = if (isCurrentSong) Color(0xFF00D4AA) else Color.White,
                                 fontSize = 14.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -2222,18 +2368,88 @@ private fun PlaylistDetailContent(
                             color = Color.Gray,
                             fontSize = 12.sp
                         )
-                        // 删除按钮（仅当onDeleteSong不为null时显示）
                         if (onDeleteSong != null) {
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "🗑",
                                 fontSize = 16.sp,
-                                modifier = Modifier.clickable { onDeleteSong(index) }
+                                modifier = Modifier.clickable { onDeleteSong(songs.indexOf(song)) }
                             )
                         }
                     }
                 }
             }
         }
+    }
+
+    // 添加歌曲到歌单对话框
+    if (showAddSongsDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddSongsDialog = false; addSongsSelected = emptySet(); addSongsSearchQuery = "" },
+            title = { Text("添加歌曲到 $playlistName") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = addSongsSearchQuery,
+                        onValueChange = { addSongsSearchQuery = it },
+                        label = { Text("搜索") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val filtered = if (addSongsSearchQuery.isBlank()) allSongs else allSongs.filter {
+                        it.title.contains(addSongsSearchQuery, true) ||
+                        it.artist.contains(addSongsSearchQuery, true)
+                    }
+                    LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
+                        itemsIndexed(filtered) { index, song ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        addSongsSelected = if (addSongsSelected.contains(index)) {
+                                            addSongsSelected - index
+                                        } else {
+                                            addSongsSelected + index
+                                        }
+                                    }
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = addSongsSelected.contains(index),
+                                    onCheckedChange = {
+                                        addSongsSelected = if (addSongsSelected.contains(index)) {
+                                            addSongsSelected - index
+                                        } else addSongsSelected + index
+                                    },
+                                    colors = CheckboxDefaults.colors(checkedColor = Color(0xFF00D4AA))
+                                )
+                                Text(
+                                    text = "${song.title} - ${song.artist}",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val selectedSongs = addSongsSelected.map { filtered[it] }
+                    if (selectedSongs.isNotEmpty()) {
+                        onAddSongsToPlaylist?.invoke(selectedSongs, playlistName)
+                    }
+                    showAddSongsDialog = false
+                    addSongsSelected = emptySet()
+                    addSongsSearchQuery = ""
+                }) { Text("添加 (${addSongsSelected.size})") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddSongsDialog = false; addSongsSelected = emptySet(); addSongsSearchQuery = "" }) { Text("取消") }
+            }
+        )
     }
 }

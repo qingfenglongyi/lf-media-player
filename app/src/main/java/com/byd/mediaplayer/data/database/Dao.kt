@@ -71,6 +71,10 @@ interface PlaylistDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlaylistSong(playlistSong: PlaylistSong)
 
+    /** 批量添加歌曲到播放列表 */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPlaylistSongs(playlistSongs: List<PlaylistSong>)
+
     /** 从播放列表移除歌曲 */
     @Query("DELETE FROM playlist_songs WHERE playlistId = :playlistId AND songId = :songId")
     suspend fun deletePlaylistSong(playlistId: Long, songId: Long)

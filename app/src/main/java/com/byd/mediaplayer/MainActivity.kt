@@ -227,7 +227,7 @@ class MainActivity : ComponentActivity() {
         var playlistTab by remember { mutableStateOf(PlaylistTab.PLAYING) }
         var searchQuery by remember { mutableStateOf("") }
         var sortType by remember { mutableStateOf(LibrarySortType.ALL) }
-        var playlists by remember { mutableStateOf<List<String>>(emptyList()) }
+        var playlists by remember { mutableStateOf<List<Pair<String, Int>>>(emptyList()) }
         var artists by remember { mutableStateOf<List<String>>(emptyList()) }
         var albums by remember { mutableStateOf<List<String>>(emptyList()) }
         var searchSongsRef by remember { mutableStateOf<((String) -> Unit)?>(null) }
@@ -289,7 +289,7 @@ class MainActivity : ComponentActivity() {
             // 加载歌单
             val database = AppDatabase.getInstance(this@MainActivity)
             val playlistEntities = database.playlistDao().getAllPlaylistsOnce()
-            playlists = playlistEntities.map { it.name }
+            playlists = playlistEntities.map { it.name to database.playlistDao().getPlaylistSongCount(it.id) }
 
             // 加载歌曲到歌曲库（只有设置了音乐目录才自动加载）
             if (musicDirectoryUri != null && librarySongs.isEmpty()) {
@@ -407,7 +407,12 @@ class MainActivity : ComponentActivity() {
                 }
                 withContext(Dispatchers.Main) {
                     val updatedPlaylists = database.playlistDao().getAllPlaylistsOnce()
-                    playlists = updatedPlaylists.map { it.name }
+                    playlists = updatedPlaylists.map { it.name to database.playlistDao().getPlaylistSongCount(it.id) }
+                    // 同步详情视图状态
+                    if (selectedPlaylistName == oldName) {
+                        selectedPlaylistName = newName
+                        playlistSongCache = playlistSongCache - oldName
+                    }
                 }
             }
         }
@@ -454,6 +459,12 @@ class MainActivity : ComponentActivity() {
                 val newMode = playerService?.getPlayerManager()?.cyclePlayMode()
                 newMode?.let { playMode = it }
             },
+            onPlayPlaylistSongs = { songs, index ->
+                playerService?.getPlayerManager()?.let { manager ->
+                    manager.setPlaylist(songs, index)
+                    lyrics = null
+                }
+            },
             onCenterViewToggle = { /* 在 PlayerScreen 内部处理 */ },
             onPlaylistToggle = { showPlaylistPanel = !showPlaylistPanel },
             onPlaylistTabChange = { playlistTab = it },
@@ -471,7 +482,7 @@ class MainActivity : ComponentActivity() {
                         // 刷新歌单列表
                         withContext(Dispatchers.Main) {
                             val updatedPlaylists = db.playlistDao().getAllPlaylistsOnce()
-                            playlists = updatedPlaylists.map { it.name }
+                            playlists = updatedPlaylists.map { it.name to database.playlistDao().getPlaylistSongCount(it.id) }
                             Logger.d(TAG, "歌单列表已刷新，数量: ${playlists.size}")
                         }
                     } catch (e: Exception) {
@@ -489,25 +500,30 @@ class MainActivity : ComponentActivity() {
                     // 刷新歌单列表
                     withContext(Dispatchers.Main) {
                         val updatedPlaylists = database.playlistDao().getAllPlaylistsOnce()
-                        playlists = updatedPlaylists.map { it.name }
+                        playlists = updatedPlaylists.map { it.name to database.playlistDao().getPlaylistSongCount(it.id) }
+                        // 同步详情视图状态
+                        if (selectedPlaylistName == name) {
+                            selectedPlaylistName = null
+                            selectedPlaylistSongs = emptyList()
+                            playlistSongCache = playlistSongCache - name
+                            libraryViewState = LibraryViewState.SONGS
+                        }
                     }
-                }
-            },
             onAddSongsToPlaylist = { songs, playlistName ->
                 activityScope.launch(Dispatchers.IO) {
                     val database = AppDatabase.getInstance(this@MainActivity)
                     try {
                         val targetPlaylist = database.playlistDao().getPlaylistByName(playlistName)
                         if (targetPlaylist != null) {
-                            songs.forEachIndexed { index, song ->
-                                database.playlistDao().insertPlaylistSong(
-                                    com.byd.mediaplayer.model.PlaylistSong(
-                                        playlistId = targetPlaylist.id,
-                                        songId = song.id,
-                                        position = database.playlistDao().getPlaylistSongCount(targetPlaylist.id) + index
-                                    )
+                            val basePos = database.playlistDao().getPlaylistSongCount(targetPlaylist.id)
+                            val playlistSongs = songs.mapIndexed { index, song ->
+                                com.byd.mediaplayer.model.PlaylistSong(
+                                    playlistId = targetPlaylist.id,
+                                    songId = song.id,
+                                    position = basePos + index
                                 )
                             }
+                            database.playlistDao().insertPlaylistSongs(playlistSongs)
                         }
                     } catch (e: Exception) {
                         Logger.e(TAG, "添加歌曲到歌单失败", e)
