@@ -519,172 +519,176 @@ fun PlaylistPanel(
 
             // 创建歌单对话框
             if (showCreateDialog) {
-                AlertDialog(
-                    onDismissRequest = { showCreateDialog = false },
-                    colors = AlertDialogDefaults.colors(
-                        containerColor = Color(0xFF1A1A2E),
-                        titleContentColor = Color.White,
-                        textContentColor = Color.White
-                    ),
-                    title = { Text("创建歌单") },
-                    text = {
-                        // 歌单名称输入框
-                        BasicTextField(
-                            value = newPlaylistName,
-                            onValueChange = { newPlaylistName = it },
-                            decorationBox = { innerTextField ->
-                                Box {
-                                    // 空内容时显示占位提示文本
-                                    if (newPlaylistName.isEmpty()) {
-                                        Text("请输入歌单名称", color = Color.Gray)
+                Dialog(onDismissRequest = { showCreateDialog = false }) {
+                    Surface(
+                        shape = androidx.compose.material3.MaterialTheme.shapes.extraLarge,
+                        color = Color(0xFF1A1A2E)
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp)) {
+                            Text("创建歌单", color = Color.White, fontSize = 20.sp)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            BasicTextField(
+                                value = newPlaylistName,
+                                onValueChange = { newPlaylistName = it },
+                                decorationBox = { innerTextField ->
+                                    Box {
+                                        if (newPlaylistName.isEmpty()) {
+                                            Text("请输入歌单名称", color = Color.Gray)
+                                        }
+                                        innerTextField()
                                     }
-                                    innerTextField()
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                    .padding(12.dp)
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = { showCreateDialog = false }) {
+                                    Text("取消")
                                 }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                .padding(12.dp)
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                if (newPlaylistName.isNotBlank()) {
-                                    onCreatePlaylist?.invoke(newPlaylistName)
-                                    newPlaylistName = ""
-                                    showCreateDialog = false
+                                Spacer(modifier = Modifier.width(8.dp))
+                                TextButton(
+                                    onClick = {
+                                        if (newPlaylistName.isNotBlank()) {
+                                            onCreatePlaylist?.invoke(newPlaylistName)
+                                            newPlaylistName = ""
+                                            showCreateDialog = false
+                                        }
+                                    }
+                                ) {
+                                    Text("创建", color = Color(0xFF00D4AA))
                                 }
                             }
-                        ) {
-                            Text("创建")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showCreateDialog = false }) {
-                            Text("取消")
                         }
                     }
-                )
+                }
             }
 
             // 删除歌单确认对话框
             if (showDeleteDialog && playlistToDelete != null) {
-                AlertDialog(
-                    onDismissRequest = { showDeleteDialog = false },
-                    colors = AlertDialogDefaults.colors(
-                        containerColor = Color(0xFF1A1A2E),
-                        titleContentColor = Color.White,
-                        textContentColor = Color.White
-                    ),
-                    title = { Text("删除歌单") },
-                    text = { Text("确定要删除歌单${playlistToDelete}吗？") },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                playlistToDelete?.let { onDeletePlaylist?.invoke(it) }
-                                showDeleteDialog = false
-                                playlistToDelete = null
+                Dialog(onDismissRequest = { showDeleteDialog = false }) {
+                    Surface(
+                        shape = androidx.compose.material3.MaterialTheme.shapes.extraLarge,
+                        color = Color(0xFF1A1A2E)
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp)) {
+                            Text("删除歌单", color = Color.White, fontSize = 20.sp)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("确定要删除歌单${playlistToDelete}吗？", color = Color.White)
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = { showDeleteDialog = false }) {
+                                    Text("取消")
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                TextButton(
+                                    onClick = {
+                                        playlistToDelete?.let { onDeletePlaylist?.invoke(it) }
+                                        showDeleteDialog = false
+                                        playlistToDelete = null
+                                    }
+                                ) {
+                                    Text("删除", color = Color.Red)
+                                }
                             }
-                        ) {
-                            Text("删除", color = Color.Red)
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showDeleteDialog = false }) {
-                            Text("取消")
                         }
                     }
-                )
+                }
             }
 
             // 重命名歌单对话框
             if (showRenameDialog && playlistToRename != null) {
-                AlertDialog(
-                    onDismissRequest = { showRenameDialog = false },
-                    colors = AlertDialogDefaults.colors(
-                        containerColor = Color(0xFF1A1A2E),
-                        titleContentColor = Color.White,
-                        textContentColor = Color.White
-                    ),
-                    title = { Text("重命名歌单") },
-                    text = {
-                        // 新名称输入框
-                        BasicTextField(
-                            value = renamePlaylistName,
-                            onValueChange = { renamePlaylistName = it },
-                            decorationBox = { innerTextField ->
-                                Box {
-                                    if (renamePlaylistName.isEmpty()) {
-                                        Text("请输入歌单名称", color = Color.Gray)
+                Dialog(onDismissRequest = { showRenameDialog = false; playlistToRename = null; renamePlaylistName = "" }) {
+                    Surface(
+                        shape = androidx.compose.material3.MaterialTheme.shapes.extraLarge,
+                        color = Color(0xFF1A1A2E)
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp)) {
+                            Text("重命名歌单", color = Color.White, fontSize = 20.sp)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            BasicTextField(
+                                value = renamePlaylistName,
+                                onValueChange = { renamePlaylistName = it },
+                                decorationBox = { innerTextField ->
+                                    Box {
+                                        if (renamePlaylistName.isEmpty()) {
+                                            Text("请输入歌单名称", color = Color.Gray)
+                                        }
+                                        innerTextField()
                                     }
-                                    innerTextField()
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                    .padding(12.dp)
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = {
+                                    showRenameDialog = false
+                                    playlistToRename = null
+                                    renamePlaylistName = ""
+                                }) {
+                                    Text("取消")
                                 }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                .padding(12.dp)
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                playlistToRename?.let { oldName ->
-                                    if (renamePlaylistName.isNotBlank()) {
-                                        onRenamePlaylist?.invoke(oldName, renamePlaylistName)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                TextButton(
+                                    onClick = {
+                                        playlistToRename?.let { oldName ->
+                                            if (renamePlaylistName.isNotBlank()) {
+                                                onRenamePlaylist?.invoke(oldName, renamePlaylistName)
+                                            }
+                                        }
+                                        showRenameDialog = false
+                                        playlistToRename = null
+                                        renamePlaylistName = ""
                                     }
+                                ) {
+                                    Text("确定", color = Color(0xFF00D4AA))
                                 }
-                                showRenameDialog = false
-                                playlistToRename = null
-                                renamePlaylistName = ""
                             }
-                        ) {
-                            Text("确定")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = {
-                            showRenameDialog = false
-                            playlistToRename = null
-                            renamePlaylistName = ""
-                        }) {
-                            Text("取消")
                         }
                     }
-                )
+                }
             }
 
             // 添加歌曲到歌单对话框
             if (showAddToPlaylistDialog && songsToAdd.isNotEmpty()) {
-                AlertDialog(
-                    onDismissRequest = { showAddToPlaylistDialog = false },
-                    colors = AlertDialogDefaults.colors(
-                        containerColor = Color(0xFF1A1A2E),
-                        titleContentColor = Color.White,
-                        textContentColor = Color.White
-                    ),
-                    title = { Text("添加到歌单") },
-                    text = {
-                        Column {
-                            // 如果没有歌单，提示用户先创建
+                Dialog(onDismissRequest = { showAddToPlaylistDialog = false; songsToAdd = emptyList() }) {
+                    Surface(
+                        shape = androidx.compose.material3.MaterialTheme.shapes.extraLarge,
+                        color = Color(0xFF1A1A2E)
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp)) {
+                            Text("添加到歌单", color = Color.White, fontSize = 20.sp)
+                            Spacer(modifier = Modifier.height(16.dp))
                             if (playlists.isEmpty()) {
                                 Text("暂无歌单，请先创建", color = Color.Gray, fontSize = 14.sp)
                             } else {
-                                // 显示所有歌单供用户选择
                                 playlists.forEach { (playlistName, _) ->
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clickable {
-                                                    if (songsToAdd.size == 1) {
-                                                        onAddToPlaylist?.invoke(songsToAdd.first(), playlistName)
-                                                    } else {
-                                                        onAddSongsToPlaylist?.invoke(songsToAdd, playlistName)
-                                                    }
-                                                    showAddToPlaylistDialog = false
-                                                    songsToAdd = emptyList()
+                                                if (songsToAdd.size == 1) {
+                                                    onAddToPlaylist?.invoke(songsToAdd.first(), playlistName)
+                                                } else {
+                                                    onAddSongsToPlaylist?.invoke(songsToAdd, playlistName)
                                                 }
+                                                showAddToPlaylistDialog = false
+                                                songsToAdd = emptyList()
+                                            }
                                             .padding(vertical = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
@@ -692,18 +696,21 @@ fun PlaylistPanel(
                                     }
                                 }
                             }
-                        }
-                    },
-                    // 空确认按钮，点击外部或取消按钮关闭
-                    confirmButton = {},
-                    dismissButton = {
-                        TextButton(onClick = {
-                            showAddToPlaylistDialog = false
-                            songsToAdd = emptyList()
-                        }) {
-                            Text("取消")
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = {
+                                    showAddToPlaylistDialog = false
+                                    songsToAdd = emptyList()
+                                }) {
+                                    Text("取消")
+                                }
+                            }
                         }
                     }
+                }
                 )
             }
         }
@@ -2410,16 +2417,14 @@ private fun PlaylistDetailContent(
             it.title.contains(addSongsSearchQuery, true) ||
             it.artist.contains(addSongsSearchQuery, true)
         }
-        AlertDialog(
-            onDismissRequest = { showAddSongsDialog = false; addSongsSelected = emptySet(); addSongsSearchQuery = "" },
-            colors = AlertDialogDefaults.colors(
-                containerColor = Color(0xFF1A1A2E),
-                titleContentColor = Color.White,
-                textContentColor = Color.White
-            ),
-            title = { Text("添加歌曲到 $playlistName") },
-            text = {
-                Column {
+        Dialog(onDismissRequest = { showAddSongsDialog = false; addSongsSelected = emptySet(); addSongsSearchQuery = "" }) {
+            Surface(
+                shape = androidx.compose.material3.MaterialTheme.shapes.extraLarge,
+                color = Color(0xFF1A1A2E)
+            ) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text("添加歌曲到 $playlistName", color = Color.White, fontSize = 20.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
                     OutlinedTextField(
                         value = addSongsSearchQuery,
                         onValueChange = { addSongsSearchQuery = it },
@@ -2465,22 +2470,25 @@ private fun PlaylistDetailContent(
                             }
                         }
                     }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val selectedSongs = addSongsSelected.map { filteredSongs[it] }
-                    if (selectedSongs.isNotEmpty()) {
-                        onAddSongsToPlaylist?.invoke(selectedSongs, playlistName)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showAddSongsDialog = false; addSongsSelected = emptySet(); addSongsSearchQuery = "" }) { Text("取消") }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        TextButton(onClick = {
+                            val selectedSongs = addSongsSelected.map { filteredSongs[it] }
+                            if (selectedSongs.isNotEmpty()) {
+                                onAddSongsToPlaylist?.invoke(selectedSongs, playlistName)
+                            }
+                            showAddSongsDialog = false
+                            addSongsSelected = emptySet()
+                            addSongsSearchQuery = ""
+                        }) { Text("添加 (${addSongsSelected.size})", color = Color(0xFF00D4AA)) }
                     }
-                    showAddSongsDialog = false
-                    addSongsSelected = emptySet()
-                    addSongsSearchQuery = ""
-                }) { Text("添加 (${addSongsSelected.size})") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddSongsDialog = false; addSongsSelected = emptySet(); addSongsSearchQuery = "" }) { Text("取消") }
+                }
             }
-        )
+        }
     }
 }
