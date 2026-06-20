@@ -715,7 +715,6 @@ fun PlaylistPanel(
             }
         }
     }
-}
 
 /**
  * 歌曲库内容组件
