@@ -286,46 +286,57 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // 加载歌单
-            val database = AppDatabase.getInstance(this@MainActivity)
-            val playlistEntities = database.playlistDao().getAllPlaylistsOnce()
-            playlists = playlistEntities.map { it.name to database.playlistDao().getPlaylistSongCount(it.id) }
+            // 将 I/O 操作移到 IO 线程，避免阻塞主线程导致启动卡顿
+            withContext(Dispatchers.IO) {
+                // 加载歌单
+                val database = AppDatabase.getInstance(this@MainActivity)
+                val playlistEntities = database.playlistDao().getAllPlaylistsOnce()
+                val playlistData = playlistEntities.map { it.name to database.playlistDao().getPlaylistSongCount(it.id) }
 
-            // 加载歌曲到歌曲库（只有设置了音乐目录才自动加载）
-            if (musicDirectoryUri != null && librarySongs.isEmpty()) {
-                val allSongs = MediaStoreHelper.querySongsFromDirectory(this@MainActivity, musicDirectoryUri!!)
-                librarySongs = allSongs
-                libraryDisplaySongs = allSongs
-                playlist = allSongs
-                Logger.i(TAG, "从目录加载歌曲完成: ${allSongs.size}首")
-            } else if (musicDirectoryUri == null) {
-                // 未设置目录
-                librarySongs = emptyList()
-                libraryDisplaySongs = emptyList()
-                playlist = emptyList()
-                Logger.i(TAG, "未设置音乐目录，等待用户设置")
-            }
-
-            // 加载艺术家和专辑列表（仅在有歌曲时）
-            if (musicDirectoryUri != null) {
-                artists = MediaStoreHelper.getAllArtists(this@MainActivity)
-                albums = MediaStoreHelper.getAllAlbums(this@MainActivity)
-            } else {
-                artists = emptyList()
-                albums = emptyList()
-            }
-
-            // 仅在非首次启动时恢复播放状态（避免卸载重装后自动播放）
-            if (!preferencesManager.isFirstLaunch && playlist.isNotEmpty()) {
-                val startIndex = preferencesManager.lastPlayedSongId.let { lastId ->
-                    playlist.indexOfFirst { it.id == lastId }.takeIf { it >= 0 } ?: 0
+                // 加载歌曲到歌曲库（只有设置了音乐目录才自动加载）
+                var allSongs: List<Song> = emptyList()
+                if (musicDirectoryUri != null && librarySongs.isEmpty()) {
+                    allSongs = MediaStoreHelper.querySongsFromDirectory(this@MainActivity, musicDirectoryUri!!)
+                    Logger.i(TAG, "从目录加载歌曲完成: ${allSongs.size}首")
                 }
-                manager.setPlaylist(playlist, startIndex)
-                Logger.i(TAG, "恢复播放列表: index=$startIndex")
-            } else {
-                // 首次启动，标记并等待用户主动播放
-                preferencesManager.isFirstLaunch = false
-                Logger.i(TAG, "首次启动，不自动恢复播放状态")
+
+                // 加载艺术家和专辑列表（仅在有歌曲时）
+                var loadedArtists: List<String> = emptyList()
+                var loadedAlbums: List<String> = emptyList()
+                if (musicDirectoryUri != null) {
+                    loadedArtists = MediaStoreHelper.getAllArtists(this@MainActivity)
+                    loadedAlbums = MediaStoreHelper.getAllAlbums(this@MainActivity)
+                }
+
+                // 切回主线程更新 UI 状态
+                withContext(Dispatchers.Main) {
+                    playlists = playlistData
+                    if (musicDirectoryUri != null && librarySongs.isEmpty()) {
+                        librarySongs = allSongs
+                        libraryDisplaySongs = allSongs
+                        playlist = allSongs
+                    } else if (musicDirectoryUri == null) {
+                        librarySongs = emptyList()
+                        libraryDisplaySongs = emptyList()
+                        playlist = emptyList()
+                        Logger.i(TAG, "未设置音乐目录，等待用户设置")
+                    }
+                    artists = loadedArtists
+                    albums = loadedAlbums
+
+                    // 仅在非首次启动时恢复播放状态（避免卸载重装后自动播放）
+                    if (!preferencesManager.isFirstLaunch && playlist.isNotEmpty()) {
+                        val startIndex = preferencesManager.lastPlayedSongId.let { lastId ->
+                            playlist.indexOfFirst { it.id == lastId }.takeIf { it >= 0 } ?: 0
+                        }
+                        manager.setPlaylist(playlist, startIndex)
+                        Logger.i(TAG, "恢复播放列表: index=$startIndex")
+                    } else {
+                        // 首次启动，标记并等待用户主动播放
+                        preferencesManager.isFirstLaunch = false
+                        Logger.i(TAG, "首次启动，不自动恢复播放状态")
+                    }
+                }
             }
 
             // 音量

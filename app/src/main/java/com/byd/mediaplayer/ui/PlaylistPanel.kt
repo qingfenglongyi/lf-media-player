@@ -353,7 +353,16 @@ fun PlaylistPanel(
                                     onAddSongsToPlaylist = onAddSongsToPlaylist,
                                     onAddSongsToQueue = onAddSongsToQueue,
                                     allSongs = allSongs,
-                                    currentSong = currentSong
+                                    currentSong = currentSong,
+                                    onRenamePlaylist = {
+                                        playlistToRename = selectedPlaylistName
+                                        renamePlaylistName = selectedPlaylistName ?: ""
+                                        showRenameDialog = true
+                                    },
+                                    onDeletePlaylist = {
+                                        playlistToDelete = selectedPlaylistName
+                                        showDeleteDialog = true
+                                    }
                                 )
                             } else {
                                 // 否则显示歌单列表
@@ -362,16 +371,7 @@ fun PlaylistPanel(
                                     onPlaylistClick = { name ->
                                         onPlaylistClick?.invoke(name)
                                     },
-                                    onCreateClick = { showCreateDialog = true },
-                                    onDeleteClick = { name ->
-                                        playlistToDelete = name
-                                        showDeleteDialog = true
-                                    },
-                                    onRenameClick = { name ->
-                                        playlistToRename = name
-                                        renamePlaylistName = name
-                                        showRenameDialog = true
-                                    }
+                                    onCreateClick = { showCreateDialog = true }
                                 )
                             }
                         }
@@ -521,6 +521,11 @@ fun PlaylistPanel(
             if (showCreateDialog) {
                 AlertDialog(
                     onDismissRequest = { showCreateDialog = false },
+                    colors = AlertDialogDefaults.colors(
+                        containerColor = Color(0xFF1A1A2E),
+                        titleContentColor = Color.White,
+                        textContentColor = Color.White
+                    ),
                     title = { Text("创建歌单") },
                     text = {
                         // 歌单名称输入框
@@ -567,6 +572,11 @@ fun PlaylistPanel(
             if (showDeleteDialog && playlistToDelete != null) {
                 AlertDialog(
                     onDismissRequest = { showDeleteDialog = false },
+                    colors = AlertDialogDefaults.colors(
+                        containerColor = Color(0xFF1A1A2E),
+                        titleContentColor = Color.White,
+                        textContentColor = Color.White
+                    ),
                     title = { Text("删除歌单") },
                     text = { Text("确定要删除歌单${playlistToDelete}吗？") },
                     confirmButton = {
@@ -592,6 +602,11 @@ fun PlaylistPanel(
             if (showRenameDialog && playlistToRename != null) {
                 AlertDialog(
                     onDismissRequest = { showRenameDialog = false },
+                    colors = AlertDialogDefaults.colors(
+                        containerColor = Color(0xFF1A1A2E),
+                        titleContentColor = Color.White,
+                        textContentColor = Color.White
+                    ),
                     title = { Text("重命名歌单") },
                     text = {
                         // 新名称输入框
@@ -644,6 +659,11 @@ fun PlaylistPanel(
             if (showAddToPlaylistDialog && songsToAdd.isNotEmpty()) {
                 AlertDialog(
                     onDismissRequest = { showAddToPlaylistDialog = false },
+                    colors = AlertDialogDefaults.colors(
+                        containerColor = Color(0xFF1A1A2E),
+                        titleContentColor = Color.White,
+                        textContentColor = Color.White
+                    ),
                     title = { Text("添加到歌单") },
                     text = {
                         Column {
@@ -825,7 +845,8 @@ private fun LibraryContent(
                     ArtistListContent(
                         artists = artists,
                         songs = songs,
-                        onArtistClick = onArtistClick
+                        onArtistClick = onArtistClick,
+                        onBack = { onViewStateChange(LibraryViewState.SONGS) }
                     )
                 }
                 // 专辑列表视图
@@ -833,7 +854,8 @@ private fun LibraryContent(
                     AlbumListContent(
                         albums = albums,
                         songs = songs,
-                        onAlbumClick = onAlbumClick
+                        onAlbumClick = onAlbumClick,
+                        onBack = { onViewStateChange(LibraryViewState.SONGS) }
                     )
                 }
                 // 某艺术家歌曲视图
@@ -917,72 +939,67 @@ private fun LibrarySongsContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 显示已选择的歌曲数量
-            if (selectedIndices.isNotEmpty()) {
-                Text(
-                    text = "已选择 ${selectedIndices.size} 首",
-                    color = Color.White,
-                    fontSize = 14.sp
-                )
-            } else {
-                Spacer(modifier = Modifier)
-            }
-            Row {
-                // 操作菜单按钮
-                Text(
-                    text = "操作",
-                    fontSize = 14.sp,
-                    color = Color(0xFF00D4AA),
-                    modifier = Modifier
-                        .clickable { showDropdownMenu = true }
-                        .padding(8.dp)
-                )
-                DropdownMenu(
-                    expanded = showDropdownMenu,
-                    onDismissRequest = { showDropdownMenu = false }
-                ) {
-                    // 有选中歌曲时显示批量操作选项
-                    if (selectedIndices.isNotEmpty()) {
-                        DropdownMenuItem(
-                            text = { Text("添加到播放列表") },
-                            onClick = {
-                                onAddToQueue(selectedIndices)
-                                showDropdownMenu = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("添加到歌单") },
-                            onClick = {
-                                onAddToPlaylist(selectedIndices)
-                                showDropdownMenu = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("从歌曲库中删除") },
-                            onClick = {
-                                onDeleteFromLibrary(selectedIndices)
-                                showDropdownMenu = false
-                            }
-                        )
-                        Divider()
-                    }
-                    // 设置音乐目录选项
+            Text(
+                text = if (selectedIndices.isNotEmpty()) "已选择 ${selectedIndices.size} 首" else "",
+                color = Color.White,
+                fontSize = 14.sp,
+                modifier = Modifier.weight(1f)
+            )
+            // 操作菜单按钮
+            Text(
+                text = "操作",
+                fontSize = 14.sp,
+                color = Color(0xFF00D4AA),
+                modifier = Modifier
+                    .clickable { showDropdownMenu = true }
+                    .padding(8.dp)
+            )
+            DropdownMenu(
+                expanded = showDropdownMenu,
+                onDismissRequest = { showDropdownMenu = false }
+            ) {
+                // 有选中歌曲时显示批量操作选项
+                if (selectedIndices.isNotEmpty()) {
                     DropdownMenuItem(
-                        text = { Text("设置音乐目录") },
+                        text = { Text("添加到播放列表") },
                         onClick = {
-                            onSetMusicDirectory?.invoke()
+                            onAddToQueue(selectedIndices)
                             showDropdownMenu = false
                         }
                     )
+                    DropdownMenuItem(
+                        text = { Text("添加到歌单") },
+                        onClick = {
+                            onAddToPlaylist(selectedIndices)
+                            showDropdownMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("从歌曲库中删除") },
+                        onClick = {
+                            onDeleteFromLibrary(selectedIndices)
+                            showDropdownMenu = false
+                        }
+                    )
+                    Divider()
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                // 选择/取消选择按钮
-                Text(
-                    text = if (isMultiSelectMode) "取消选择" else "选择",
-                    color = Color(0xFF00D4AA),
-                    fontSize = 14.sp,
-                    modifier = Modifier.clickable { onToggleMultiSelect() }
+                // 设置音乐目录选项
+                DropdownMenuItem(
+                    text = { Text("设置音乐目录") },
+                    onClick = {
+                        onSetMusicDirectory?.invoke()
+                        showDropdownMenu = false
+                    }
                 )
             }
+            Spacer(modifier = Modifier.width(8.dp))
+            // 选择/取消选择按钮
+            Text(
+                text = if (isMultiSelectMode) "取消选择" else "选择",
+                color = Color(0xFF00D4AA),
+                fontSize = 14.sp,
+                modifier = Modifier.clickable { onToggleMultiSelect() }
+            )
         }
 
         Divider(color = Color.Gray.copy(alpha = 0.2f))
@@ -1109,15 +1126,24 @@ private fun SortChip(
 private fun ArtistListContent(
     artists: List<String>,
     songs: List<Song>,
-    onArtistClick: (String) -> Unit
+    onArtistClick: (String) -> Unit,
+    onBack: () -> Unit = {}
 ) {
     if (artists.isEmpty()) {
-        // 无艺术家时显示提示
-        Box(
+        // 无艺术家时显示提示和返回按钮
+        Column(
             modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Text("暂无艺术家", color = Color.Gray, fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "← 返回",
+                color = Color(0xFF00D4AA),
+                fontSize = 14.sp,
+                modifier = Modifier.clickable { onBack() }
+            )
         }
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -1164,15 +1190,24 @@ private fun ArtistListContent(
 private fun AlbumListContent(
     albums: List<String>,
     songs: List<Song>,
-    onAlbumClick: (String) -> Unit
+    onAlbumClick: (String) -> Unit,
+    onBack: () -> Unit = {}
 ) {
     if (albums.isEmpty()) {
-        // 无专辑时显示提示
-        Box(
+        // 无专辑时显示提示和返回按钮
+        Column(
             modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Text("暂无专辑", color = Color.Gray, fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "← 返回",
+                color = Color(0xFF00D4AA),
+                fontSize = 14.sp,
+                modifier = Modifier.clickable { onBack() }
+            )
         }
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -1437,63 +1472,58 @@ private fun PlayingListContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (selectedIndices.isNotEmpty()) {
-                Text(
-                    text = "已选择 ${selectedIndices.size} 首",
-                    color = Color.White,
-                    fontSize = 14.sp
+            Text(
+                text = if (selectedIndices.isNotEmpty()) "已选择 ${selectedIndices.size} 首" else "",
+                color = Color.White,
+                fontSize = 14.sp,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "操作",
+                fontSize = 14.sp,
+                color = Color(0xFF00D4AA),
+                modifier = Modifier
+                    .clickable { showDropdownMenu = true }
+                    .padding(8.dp)
+            )
+            DropdownMenu(
+                expanded = showDropdownMenu,
+                onDismissRequest = { showDropdownMenu = false }
+            ) {
+                // 清空播放列表选项
+                DropdownMenuItem(
+                    text = { Text("清空播放列表") },
+                    onClick = {
+                        onClearPlaylist?.invoke()
+                        showDropdownMenu = false
+                    }
                 )
-            } else {
-                Spacer(modifier = Modifier)
-            }
-            Row {
-                Text(
-                    text = "操作",
-                    fontSize = 14.sp,
-                    color = Color(0xFF00D4AA),
-                    modifier = Modifier
-                        .clickable { showDropdownMenu = true }
-                        .padding(8.dp)
-                )
-                DropdownMenu(
-                    expanded = showDropdownMenu,
-                    onDismissRequest = { showDropdownMenu = false }
-                ) {
-                    // 清空播放列表选项
+                // 有选中歌曲时显示删除和添加选项
+                if (selectedIndices.isNotEmpty()) {
                     DropdownMenuItem(
-                        text = { Text("清空播放列表") },
+                        text = { Text("删除") },
                         onClick = {
-                            onClearPlaylist?.invoke()
+                            onDeleteSelected(selectedIndices)
                             showDropdownMenu = false
                         }
                     )
-                    // 有选中歌曲时显示删除和添加选项
-                    if (selectedIndices.isNotEmpty()) {
-                        DropdownMenuItem(
-                            text = { Text("删除") },
-                            onClick = {
-                                onDeleteSelected(selectedIndices)
-                                showDropdownMenu = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("添加到歌单") },
-                            onClick = {
-                                val selectedSongs = selectedIndices.map { songs[it] }
-                                onAddToPlaylist(selectedSongs)
-                                showDropdownMenu = false
-                            }
-                        )
-                    }
+                    DropdownMenuItem(
+                        text = { Text("添加到歌单") },
+                        onClick = {
+                            val selectedSongs = selectedIndices.map { songs[it] }
+                            onAddToPlaylist(selectedSongs)
+                            showDropdownMenu = false
+                        }
+                    )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isMultiSelectMode) "取消选择" else "选择",
-                    color = Color(0xFF00D4AA),
-                    fontSize = 14.sp,
-                    modifier = Modifier.clickable { onToggleMultiSelect() }
-                )
             }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (isMultiSelectMode) "取消选择" else "选择",
+                color = Color(0xFF00D4AA),
+                fontSize = 14.sp,
+                modifier = Modifier.clickable { onToggleMultiSelect() }
+            )
         }
 
         Divider(color = Color.Gray.copy(alpha = 0.2f))
@@ -1742,61 +1772,56 @@ private fun MultiSelectPlaylistContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (selectedIndices.isNotEmpty()) {
-                Text(
-                    text = "已选择 ${selectedIndices.size} 首",
-                    color = Color.White,
-                    fontSize = 14.sp
+            Text(
+                text = if (selectedIndices.isNotEmpty()) "已选择 ${selectedIndices.size} 首" else "",
+                color = Color.White,
+                fontSize = 14.sp,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "操作",
+                fontSize = 14.sp,
+                color = Color(0xFF00D4AA),
+                modifier = Modifier
+                    .clickable { showDropdownMenu = true }
+                    .padding(8.dp)
+            )
+            DropdownMenu(
+                expanded = showDropdownMenu,
+                onDismissRequest = { showDropdownMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("清空播放列表") },
+                    onClick = {
+                        onClearPlaylist?.invoke()
+                        showDropdownMenu = false
+                    }
                 )
-            } else {
-                Spacer(modifier = Modifier)
-            }
-            Row {
-                Text(
-                    text = "操作",
-                    fontSize = 14.sp,
-                    color = Color(0xFF00D4AA),
-                    modifier = Modifier
-                        .clickable { showDropdownMenu = true }
-                        .padding(8.dp)
-                )
-                DropdownMenu(
-                    expanded = showDropdownMenu,
-                    onDismissRequest = { showDropdownMenu = false }
-                ) {
+                if (selectedIndices.isNotEmpty()) {
                     DropdownMenuItem(
-                        text = { Text("清空播放列表") },
+                        text = { Text("删除") },
                         onClick = {
-                            onClearPlaylist?.invoke()
+                            onDeleteSelected(selectedIndices)
                             showDropdownMenu = false
                         }
                     )
-                    if (selectedIndices.isNotEmpty()) {
-                        DropdownMenuItem(
-                            text = { Text("删除") },
-                            onClick = {
-                                onDeleteSelected(selectedIndices)
-                                showDropdownMenu = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("添加到歌单") },
-                            onClick = {
-                                val selectedSongs = selectedIndices.map { songs[it] }
-                                onAddToPlaylist(selectedSongs)
-                                showDropdownMenu = false
-                            }
-                        )
-                    }
+                    DropdownMenuItem(
+                        text = { Text("添加到歌单") },
+                        onClick = {
+                            val selectedSongs = selectedIndices.map { songs[it] }
+                            onAddToPlaylist(selectedSongs)
+                            showDropdownMenu = false
+                        }
+                    )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isMultiSelectMode) "取消选择" else "选择",
-                    color = Color(0xFF00D4AA),
-                    fontSize = 14.sp,
-                    modifier = Modifier.clickable { onToggleMultiSelect() }
-                )
             }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (isMultiSelectMode) "取消选择" else "选择",
+                color = Color(0xFF00D4AA),
+                fontSize = 14.sp,
+                modifier = Modifier.clickable { onToggleMultiSelect() }
+            )
         }
 
         Divider(color = Color.Gray.copy(alpha = 0.2f))
@@ -1874,9 +1899,7 @@ private fun MultiSelectPlaylistContent(
 private fun PlaylistListContent(
     playlists: List<Pair<String, Int>>,
     onPlaylistClick: (String) -> Unit,
-    onCreateClick: () -> Unit,
-    onDeleteClick: (String) -> Unit,
-    onRenameClick: ((String) -> Unit)? = null
+    onCreateClick: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // 创建歌单按钮
@@ -1914,9 +1937,7 @@ private fun PlaylistListContent(
                     PlaylistItem(
                         name = name,
                         count = count,
-                        onClick = { onPlaylistClick(name) },
-                        onDelete = { onDeleteClick(name) },
-                        onRename = onRenameClick?.let { click -> { click(name) } }
+                        onClick = { onPlaylistClick(name) }
                     )
                 }
             }
@@ -1927,19 +1948,16 @@ private fun PlaylistListContent(
 /**
  * 歌单项组件
  *
- * 显示单个歌单的名称和删除按钮
+ * 显示单个歌单的名称和歌曲数
  *
  * @param name 歌单名称
  * @param onClick 点击回调
- * @param onDelete 删除回调
  */
 @Composable
 private fun PlaylistItem(
     name: String,
     count: Int = 0,
-    onClick: () -> Unit,
-    onDelete: () -> Unit,
-    onRename: (() -> Unit)? = null
+    onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -1960,22 +1978,6 @@ private fun PlaylistItem(
             text = "($count)",
             color = Color.Gray,
             fontSize = 13.sp
-        )
-        // 重命名按钮
-        onRename?.let {
-            Text(
-                text = "✏️",
-                fontSize = 16.sp,
-                modifier = Modifier
-                    .clickable { it() }
-                    .padding(end = 12.dp)
-            )
-        }
-        // 删除按钮
-        Text(
-            text = "🗑",
-            fontSize = 16.sp,
-            modifier = Modifier.clickable { onDelete() }
         )
     }
 }
@@ -2043,60 +2045,55 @@ private fun LibraryMultiSelectContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (selectedIndices.isNotEmpty()) {
-                Text(
-                    text = "已选择 ${selectedIndices.size} 首",
-                    color = Color.White,
-                    fontSize = 14.sp
+            Text(
+                text = if (selectedIndices.isNotEmpty()) "已选择 ${selectedIndices.size} 首" else "",
+                color = Color.White,
+                fontSize = 14.sp,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "操作",
+                fontSize = 14.sp,
+                color = Color(0xFF00D4AA),
+                modifier = Modifier
+                    .clickable { showDropdownMenu = true }
+                    .padding(8.dp)
+            )
+            DropdownMenu(
+                expanded = showDropdownMenu,
+                onDismissRequest = { showDropdownMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("添加到播放列表") },
+                    onClick = {
+                        onAddToQueue(selectedIndices)
+                        showDropdownMenu = false
+                    }
                 )
-            } else {
-                Spacer(modifier = Modifier)
-            }
-            Row {
-                Text(
-                    text = "操作",
-                    fontSize = 14.sp,
-                    color = Color(0xFF00D4AA),
-                    modifier = Modifier
-                        .clickable { showDropdownMenu = true }
-                        .padding(8.dp)
-                )
-                DropdownMenu(
-                    expanded = showDropdownMenu,
-                    onDismissRequest = { showDropdownMenu = false }
-                ) {
+                if (selectedIndices.isNotEmpty()) {
                     DropdownMenuItem(
-                        text = { Text("添加到播放列表") },
+                        text = { Text("添加到歌单") },
                         onClick = {
-                            onAddToQueue(selectedIndices)
+                            onAddToPlaylist(selectedIndices)
                             showDropdownMenu = false
                         }
                     )
-                    if (selectedIndices.isNotEmpty()) {
-                        DropdownMenuItem(
-                            text = { Text("添加到歌单") },
-                            onClick = {
-                                onAddToPlaylist(selectedIndices)
-                                showDropdownMenu = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("从歌曲库中删除") },
-                            onClick = {
-                                onDeleteFromLibrary(selectedIndices)
-                                showDropdownMenu = false
-                            }
-                        )
-                    }
+                    DropdownMenuItem(
+                        text = { Text("从歌曲库中删除") },
+                        onClick = {
+                            onDeleteFromLibrary(selectedIndices)
+                            showDropdownMenu = false
+                        }
+                    )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isMultiSelectMode) "取消选择" else "选择",
-                    color = Color(0xFF00D4AA),
-                    fontSize = 14.sp,
-                    modifier = Modifier.clickable { onToggleMultiSelect() }
-                )
             }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (isMultiSelectMode) "取消选择" else "选择",
+                color = Color(0xFF00D4AA),
+                fontSize = 14.sp,
+                modifier = Modifier.clickable { onToggleMultiSelect() }
+            )
         }
 
         Divider(color = Color.Gray.copy(alpha = 0.2f))
@@ -2179,7 +2176,9 @@ private fun PlaylistDetailContent(
     onAddSongsToPlaylist: ((List<Song>, String) -> Unit)? = null,
     onAddSongsToQueue: ((List<Song>) -> Unit)? = null,
     allSongs: List<Song> = emptyList(),
-    currentSong: Song? = null
+    currentSong: Song? = null,
+    onRenamePlaylist: (() -> Unit)? = null,
+    onDeletePlaylist: (() -> Unit)? = null
 ) {
     var detailMultiSelect by remember { mutableStateOf(false) }
     var detailSelected by remember { mutableStateOf<Set<Int>>(emptySet()) }
@@ -2250,6 +2249,24 @@ private fun PlaylistDetailContent(
                 fontSize = 13.sp,
                 modifier = Modifier.clickable { sortType = (sortType + 1) % 3 }
             )
+            // 改名按钮
+            onRenamePlaylist?.let {
+                Text(
+                    text = "✏️ 改名",
+                    color = Color.Gray,
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable { it() }
+                )
+            }
+            // 删除按钮
+            onDeletePlaylist?.let {
+                Text(
+                    text = "🗑 删除",
+                    color = Color.Red.copy(alpha = 0.8f),
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable { it() }
+                )
+            }
         }
 
         // 多选模式操作行
@@ -2260,49 +2277,48 @@ private fun PlaylistDetailContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Text(
+                text = if (detailMultiSelect && detailSelected.isNotEmpty()) "已选择 ${detailSelected.size} 首" else "",
+                color = Color.Gray,
+                fontSize = 12.sp,
+                modifier = Modifier.weight(1f)
+            )
             if (detailMultiSelect && detailSelected.isNotEmpty()) {
-                Text("已选择 ${detailSelected.size} 首", color = Color.Gray, fontSize = 12.sp)
-            } else {
-                Spacer(modifier = Modifier.width(1.dp))
-            }
-            Row {
-                if (detailMultiSelect && detailSelected.isNotEmpty()) {
-                    Text(
-                        text = "删除",
-                        color = Color.Red,
-                        fontSize = 13.sp,
-                        modifier = Modifier.clickable {
-                            detailSelected.sortedDescending().forEach { idx ->
-                                onDeleteSong?.invoke(idx)
-                            }
-                            detailSelected = emptySet()
-                            detailMultiSelect = false
-                        }
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Text(
-                        text = "加入队列",
-                        color = Color(0xFF00D4AA),
-                        fontSize = 13.sp,
-                        modifier = Modifier.clickable {
-                            val selectedSongs = detailSelected.map { sortedSongs[it] }
-                            onAddSongsToQueue?.invoke(selectedSongs)
-                            detailSelected = emptySet()
-                            detailMultiSelect = false
-                        }
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                }
                 Text(
-                    text = if (detailMultiSelect) "取消选择" else "选择",
-                    color = Color.Gray,
+                    text = "删除",
+                    color = Color.Red,
                     fontSize = 13.sp,
                     modifier = Modifier.clickable {
-                        detailMultiSelect = !detailMultiSelect
+                        detailSelected.sortedDescending().forEach { idx ->
+                            onDeleteSong?.invoke(idx)
+                        }
                         detailSelected = emptySet()
+                        detailMultiSelect = false
                     }
                 )
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = "加入队列",
+                    color = Color(0xFF00D4AA),
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable {
+                        val selectedSongs = detailSelected.map { sortedSongs[it] }
+                        onAddSongsToQueue?.invoke(selectedSongs)
+                        detailSelected = emptySet()
+                        detailMultiSelect = false
+                    }
+                )
+                Spacer(modifier = Modifier.width(16.dp))
             }
+            Text(
+                text = if (detailMultiSelect) "取消选择" else "选择",
+                color = Color(0xFF00D4AA),
+                fontSize = 13.sp,
+                modifier = Modifier.clickable {
+                    detailMultiSelect = !detailMultiSelect
+                    detailSelected = emptySet()
+                }
+            )
         }
 
         Divider(color = Color.Gray.copy(alpha = 0.2f))
@@ -2396,6 +2412,11 @@ private fun PlaylistDetailContent(
         }
         AlertDialog(
             onDismissRequest = { showAddSongsDialog = false; addSongsSelected = emptySet(); addSongsSearchQuery = "" },
+            colors = AlertDialogDefaults.colors(
+                containerColor = Color(0xFF1A1A2E),
+                titleContentColor = Color.White,
+                textContentColor = Color.White
+            ),
             title = { Text("添加歌曲到 $playlistName") },
             text = {
                 Column {
@@ -2403,7 +2424,11 @@ private fun PlaylistDetailContent(
                         value = addSongsSearchQuery,
                         onValueChange = { addSongsSearchQuery = it },
                         label = { Text("搜索") },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                            focusedLabelColor = Color.Gray, unfocusedLabelColor = Color.Gray
+                        )
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
