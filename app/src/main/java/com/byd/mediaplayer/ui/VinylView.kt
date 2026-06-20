@@ -126,7 +126,7 @@ fun VinylView(
                     Text(
                         text = song.title.take(6),
                         color = Color.White.copy(alpha = 0.8f),
-                        fontSize = (10 * s).sp,
+                        fontSize = (10f * s).sp,
                         maxLines = 1
                     )
                 }
@@ -135,5 +135,6 @@ fun VinylView(
     }
 }
 
-// 扩展属性：Int转换为sp
+// 扩展属性：Float/Int转换为sp
+private val Float.sp get() = androidx.compose.ui.unit.TextUnit(this, androidx.compose.ui.unit.TextUnitType.Sp)
 private val Int.sp get() = androidx.compose.ui.unit.TextUnit(this.toFloat(), androidx.compose.ui.unit.TextUnitType.Sp)

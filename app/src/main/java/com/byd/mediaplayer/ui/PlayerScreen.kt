@@ -215,6 +215,7 @@ fun PlayerScreen(
             ProgressBar(
                 currentPosition = currentPosition,
                 duration = duration,
+                onSeek = onSeek,
                 scale = scale
             )
 
