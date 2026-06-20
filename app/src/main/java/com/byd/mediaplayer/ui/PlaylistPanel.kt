@@ -711,7 +711,7 @@ fun PlaylistPanel(
                         }
                     }
                 }
-                )
+                }
             }
         }
     }
