@@ -32,8 +32,10 @@ fun VinylView(
     song: Song?,
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
+    scale: Float = 1f,
     onClick: () -> Unit = {}
 ) {
+    val s = scale.coerceIn(0.5f, 2.5f)
     // 旋转动画：持续10秒完成一圈
     val infiniteTransition = rememberInfiniteTransition(label = "vinyl")
     val rotation by infiniteTransition.animateFloat(
@@ -51,7 +53,7 @@ fun VinylView(
 
     Box(
         modifier = modifier
-            .size(280.dp)
+            .size((280 * s).dp)
             .clip(CircleShape)                    // 裁剪为圆形
             .background(Color(0xFF1A1A2E))        // 深色背景
             .clickable(onClick = onClick),         // 点击切换到歌词
@@ -60,7 +62,7 @@ fun VinylView(
         // 外圈（唱片主体）
         Box(
             modifier = Modifier
-                .size(260.dp)
+                .size((260 * s).dp)
                 .rotate(currentRotation)           // 旋转动画
                 .clip(CircleShape)
                 .background(
@@ -73,7 +75,7 @@ fun VinylView(
                         )
                     )
                 )
-                .border(8.dp, Color(0xFF3A3A5E), CircleShape)  // 外圈边框
+                .border((8 * s).dp, Color(0xFF3A3A5E), CircleShape)  // 外圈边框
         ) {
             // 唱片纹路（与唱片反向旋转产生视觉效果）
             Box(
@@ -82,7 +84,7 @@ fun VinylView(
                     .rotate(-currentRotation)
             ) {
                 // 绘制8条放射状纹路
-                repeat(8) { i ->
+                repeat(8) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -97,7 +99,7 @@ fun VinylView(
         // 中心标签区域
         Box(
             modifier = Modifier
-                .size(100.dp)
+                .size((100 * s).dp)
                 .clip(CircleShape)
                 .background(
                     brush = Brush.radialGradient(
@@ -107,7 +109,7 @@ fun VinylView(
                         )
                     )
                 )
-                .border(4.dp, Color.White.copy(alpha = 0.3f), CircleShape),
+                .border((4 * s).dp, Color.White.copy(alpha = 0.3f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -117,14 +119,14 @@ fun VinylView(
                 Text(
                     text = "♪",
                     color = Color.White,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size((40 * s).dp)
                 )
                 // 显示歌曲标题（最多6个字符）
                 if (song != null) {
                     Text(
                         text = song.title.take(6),
                         color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 10.sp,
+                        fontSize = (10 * s).sp,
                         maxLines = 1
                     )
                 }

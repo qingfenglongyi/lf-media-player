@@ -36,17 +36,15 @@ fun LyricView(
     lyrics: Lyrics?,
     currentTime: Long,
     modifier: Modifier = Modifier,
+    scale: Float = 1f,
     onClick: () -> Unit = {}
 ) {
-    // 根据当前时间计算应高亮的行索引
+    val s = scale.coerceIn(0.5f, 2.0f)
     val currentLineIndex = lyrics?.getCurrentLineIndex(currentTime) ?: -1
-    // LazyColumn的列表状态（用于控制滚动位置）
     val listState = rememberLazyListState()
 
-    // 当高亮行变化时，自动滚动到该行
     LaunchedEffect(currentLineIndex) {
         if (currentLineIndex >= 0 && lyrics != null) {
-            // 目标索引：当前行往上2行，这样当前行在屏幕偏下位置
             val targetIndex = (currentLineIndex - 2).coerceAtLeast(0)
             listState.animateScrollToItem(targetIndex)
         }
@@ -55,20 +53,18 @@ fun LyricView(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF1A1A2E))  // 深色背景
-            .padding(16.dp)
-            .clickable(onClick = onClick),  // 点击切换回唱片视图
+            .background(Color(0xFF1A1A2E))
+            .padding((16 * s).dp)
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         if (lyrics == null || lyrics.lines.isEmpty()) {
-            // 无歌词时显示提示文字
             Text(
                 text = "暂无歌词",
                 color = Color.Gray,
-                fontSize = 18.sp
+                fontSize = (18 * s).sp
             )
         } else {
-            // 歌词列表
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxWidth(),
@@ -78,16 +74,14 @@ fun LyricView(
                     val isCurrentLine = index == currentLineIndex
 
                     Text(
-                        text = line.text.ifEmpty { "♪" },  // 空文本显示音符
-                        // 当前行高亮显示，其他行灰色
+                        text = line.text.ifEmpty { "♪" },
                         color = if (isCurrentLine) Color(0xFF00D4AA) else Color.Gray,
-                        // 当前行字体更大、加粗
-                        fontSize = if (isCurrentLine) 22.sp else 16.sp,
+                        fontSize = (if (isCurrentLine) 22 * s else 16 * s).sp,
                         fontWeight = if (isCurrentLine) FontWeight.Bold else FontWeight.Normal,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 12.dp)
+                            .padding(vertical = (12 * s).dp)
                     )
                 }
             }

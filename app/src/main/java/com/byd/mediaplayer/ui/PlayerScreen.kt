@@ -3,6 +3,7 @@ package com.byd.mediaplayer.ui
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.Dp
 import com.byd.mediaplayer.model.Lyrics
 import com.byd.mediaplayer.model.PlayMode
 import com.byd.mediaplayer.model.Song
@@ -142,29 +145,37 @@ fun PlayerScreen(
     // 当前中心视图状态（唱片或歌词）
     var centerView by remember { mutableStateOf(CenterView.VINYL) }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFF1A1A2E))  // 深色背景
     ) {
+        // 基于屏幕高度计算缩放因子（700dp为设计基准）
+        val baseHeight = 700.dp
+        val scale = (maxHeight / baseHeight).coerceIn(0.5f, 2.0f)
+        val gap = (12 * scale).dp
+        val titleHeight = (50 * scale).dp
+        val outerPad = (10 * scale).dp
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(10.dp),
+                .padding(outerPad),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // 歌曲信息显示区域（标题过长时自动滚动）
             val songTitle = currentSong?.title ?: "未选择歌曲"
             val songArtist = currentSong?.artist ?: "比亚迪音乐播放器"
             val songInfo = "$songTitle - $songArtist"
-            Box(modifier = Modifier.height(50.dp)) {
+            Box(modifier = Modifier.height(titleHeight)) {
                 AutoScrollingText(
                     text = songInfo,
-                    modifier = Modifier.padding(vertical = 10.dp)
+                    modifier = Modifier.padding(vertical = (10 * scale).dp),
+                    fontSize = (20 * scale).sp
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(gap))
 
             // 中心视图区域（唱片或歌词，可切换）
             Box(
@@ -173,25 +184,24 @@ fun PlayerScreen(
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                // 使用AnimatedContent实现视图切换动画
                 AnimatedContent(
                     targetState = centerView,
                     label = "centerView"
                 ) { view ->
                     when (view) {
-                        // 黑胶唱片视图
                         CenterView.VINYL -> {
                             VinylView(
                                 song = currentSong,
                                 isPlaying = isPlaying,
+                                scale = scale,
                                 onClick = { centerView = CenterView.LYRIC }
                             )
                         }
-                        // 歌词视图
                         CenterView.LYRIC -> {
                             LyricView(
                                 lyrics = lyrics,
                                 currentTime = currentPosition,
+                                scale = scale,
                                 onClick = { centerView = CenterView.VINYL }
                             )
                         }
@@ -199,16 +209,16 @@ fun PlayerScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(gap))
 
             // 进度条（显示播放进度，可拖动跳转）
             ProgressBar(
                 currentPosition = currentPosition,
                 duration = duration,
-                onSeek = onSeek
+                scale = scale
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(gap))
 
             // 播放控制按钮区域
             PlaybackControls(
@@ -218,7 +228,8 @@ fun PlayerScreen(
                 onNext = onNext,
                 onPrevious = onPrevious,
                 onPlayModeChange = onPlayModeChange,
-                onPlaylistToggle = onPlaylistToggle
+                onPlaylistToggle = onPlaylistToggle,
+                scale = scale
             )
         }
 
@@ -282,32 +293,29 @@ fun PlayerScreen(
 private fun ProgressBar(
     currentPosition: Long,
     duration: Long,
-    onSeek: (Long) -> Unit
+    onSeek: (Long) -> Unit,
+    scale: Float = 1f
 ) {
-    // 本地状态，用于拖动时的实时反馈
     var sliderPosition by remember(currentPosition) { mutableFloatStateOf(currentPosition.toFloat()) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        // 滑块
         Slider(
             value = sliderPosition,
-            onValueChange = { sliderPosition = it },  // 拖动时更新本地状态
-            onValueChangeFinished = { onSeek(sliderPosition.toLong()) },  // 拖动结束时跳转
-            valueRange = 0f..duration.toFloat().coerceAtLeast(1f),  // 范围0到时长
+            onValueChange = { sliderPosition = it },
+            onValueChangeFinished = { onSeek(sliderPosition.toLong()) },
+            valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
             colors = SliderDefaults.colors(
-                thumbColor = Color(0xFF00D4AA),      // 滑块颜色（主题色）
-                activeTrackColor = Color(0xFF00D4AA), // 已播放部分颜色
-                inactiveTrackColor = Color.Gray     // 未播放部分颜色
+                thumbColor = Color(0xFF00D4AA),
+                activeTrackColor = Color(0xFF00D4AA),
+                inactiveTrackColor = Color.Gray
             )
         )
-
-        // 时间显示（当前时间 / 总时长）
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = formatTime(currentPosition), color = Color.Gray, fontSize = 12.sp)
-            Text(text = formatTime(duration), color = Color.Gray, fontSize = 12.sp)
+            Text(text = formatTime(currentPosition), color = Color.Gray, fontSize = (12 * scale).sp)
+            Text(text = formatTime(duration), color = Color.Gray, fontSize = (12 * scale).sp)
         }
     }
 }
@@ -332,82 +340,74 @@ private fun PlaybackControls(
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onPlayModeChange: () -> Unit,
-    onPlaylistToggle: () -> Unit
+    onPlaylistToggle: () -> Unit,
+    scale: Float = 1f
 ) {
-    // 获取屏幕配置，判断横竖屏
+    val s = scale.coerceIn(0.5f, 2.0f)
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
 
     if (isLandscape) {
-        // 横屏布局：一行5个按钮，等大排列
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 10.dp),
+                .padding(vertical = (10 * s).dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 播放模式按钮（🔁列表循环 🔂单曲循环 🔀随机）
             Text(
                 text = when (playMode) {
                     PlayMode.LIST_LOOP -> "🔁"
                     PlayMode.SINGLE_LOOP -> "🔂"
                     PlayMode.SHUFFLE -> "🔀"
                 },
-                fontSize = 24.sp,
+                fontSize = (24 * s).sp,
                 color = Color.White,
                 modifier = Modifier.clickable(onClick = onPlayModeChange)
             )
-            // 上一曲
-            Text("⏮", fontSize = 32.sp, color = Color.White, modifier = Modifier.clickable(onClick = onPrevious))
-            // 播放/暂停（突出显示）
+            Text("⏮", fontSize = (32 * s).sp, color = Color.White, modifier = Modifier.clickable(onClick = onPrevious))
             Box(
                 modifier = Modifier
-                    .size(72.dp)
+                    .size((72 * s).dp)
                     .clip(CircleShape)
                     .background(Color(0xFF00D4AA))
                     .clickable(onClick = onPlayPause),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = if (isPlaying) "⏸" else "▶", fontSize = 32.sp, color = Color.White)
+                Text(text = if (isPlaying) "⏸" else "▶", fontSize = (32 * s).sp, color = Color.White)
             }
-            // 下一曲
-            Text("⏭", fontSize = 32.sp, color = Color.White, modifier = Modifier.clickable(onClick = onNext))
-            // 播放列表
-            Text("📋", fontSize = 24.sp, color = Color.White, modifier = Modifier.clickable(onClick = onPlaylistToggle))
+            Text("⏭", fontSize = (32 * s).sp, color = Color.White, modifier = Modifier.clickable(onClick = onNext))
+            Text("📋", fontSize = (24 * s).sp, color = Color.White, modifier = Modifier.clickable(onClick = onPlaylistToggle))
         }
     } else {
-        // 竖屏布局：两行
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 上行：上一曲、播放/暂停、下一曲（大按钮）
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 10.dp),
+                    .padding(vertical = (10 * s).dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("⏮", fontSize = 48.sp, color = Color.White, modifier = Modifier.clickable(onClick = onPrevious))
+                Text("⏮", fontSize = (48 * s).sp, color = Color.White, modifier = Modifier.clickable(onClick = onPrevious))
                 Box(
                     modifier = Modifier
-                        .size(80.dp)
+                        .size((80 * s).dp)
                         .clip(CircleShape)
                         .background(Color(0xFF00D4AA))
                         .clickable(onClick = onPlayPause),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = if (isPlaying) "⏸" else "▶", fontSize = 40.sp, color = Color.White)
+                    Text(text = if (isPlaying) "⏸" else "▶", fontSize = (40 * s).sp, color = Color.White)
                 }
-                Text("⏭", fontSize = 48.sp, color = Color.White, modifier = Modifier.clickable(onClick = onNext))
+                Text("⏭", fontSize = (48 * s).sp, color = Color.White, modifier = Modifier.clickable(onClick = onNext))
             }
-            // 下行：播放模式、播放列表（小按钮）
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 5.dp),
+                    .padding(vertical = (5 * s).dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -417,11 +417,11 @@ private fun PlaybackControls(
                         PlayMode.SINGLE_LOOP -> "🔂"
                         PlayMode.SHUFFLE -> "🔀"
                     },
-                    fontSize = 28.sp,
+                    fontSize = (28 * s).sp,
                     color = Color.White,
                     modifier = Modifier.clickable(onClick = onPlayModeChange)
                 )
-                Text("📋", fontSize = 28.sp, color = Color.White, modifier = Modifier.clickable(onClick = onPlaylistToggle))
+                Text("📋", fontSize = (28 * s).sp, color = Color.White, modifier = Modifier.clickable(onClick = onPlaylistToggle))
             }
         }
     }
@@ -455,7 +455,8 @@ private fun AutoScrollingText(
     text: String,
     modifier: Modifier = Modifier,
     scrollDelayMs: Long = 3000L,
-    scrollSpeed: Float = 50f
+    scrollSpeed: Float = 50f,
+    fontSize: TextUnit = 20.sp
 ) {
     var textWidth by remember { mutableFloatStateOf(0f) }
     var containerWidth by remember { mutableFloatStateOf(0f) }
@@ -504,7 +505,7 @@ private fun AutoScrollingText(
         Text(
             text = text,
             color = Color.White,
-            fontSize = 20.sp,
+            fontSize = fontSize,
             fontWeight = FontWeight.Bold,
             maxLines = 1
         )
