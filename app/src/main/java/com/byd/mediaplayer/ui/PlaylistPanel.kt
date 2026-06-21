@@ -906,10 +906,7 @@ private fun LibraryContent(
                             onAddToPlaylist?.invoke(indices)
                         },
                         onDeleteFromLibrary = { indices ->
-                            confirmTitle = "删除歌曲"
-                            confirmMessage = "确定要从歌曲库中删除选中的 ${indices.size} 首歌曲吗？"
-                            confirmAction = { onDeleteFromLibrary?.invoke(indices) }
-                            showConfirmDialog = true
+                            onDeleteFromLibrary?.invoke(indices)
                         },
                         onSetMusicDirectory = onSetMusicDirectory,
                         isMultiSelectMode = isMultiSelectMode
