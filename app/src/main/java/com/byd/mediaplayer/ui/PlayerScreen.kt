@@ -139,6 +139,8 @@ fun PlayerScreen(
     onBackFromPlaylist: (() -> Unit)? = null,
     getPlaylistSongs: ((String) -> List<Song>)? = null,
     onSetMusicDirectory: (() -> Unit)? = null,
+    onPlaySongFromLibrary: ((Song) -> Unit)? = null,
+    onPlayAllSongs: (() -> Unit)? = null,
     playlists: List<Pair<String, Int>> = emptyList(),
     modifier: Modifier = Modifier
 ) {
@@ -277,7 +279,9 @@ fun PlayerScreen(
             selectedPlaylistName = selectedPlaylistName,
             onBackFromPlaylist = onBackFromPlaylist,
             getPlaylistSongs = getPlaylistSongs,
-            onSetMusicDirectory = onSetMusicDirectory
+            onSetMusicDirectory = onSetMusicDirectory,
+            onPlaySongFromLibrary = onPlaySongFromLibrary,
+            onPlayAllSongs = onPlayAllSongs
         )
     }
 }
@@ -298,13 +302,16 @@ private fun ProgressBar(
     scale: Float = 1f
 ) {
     var sliderPosition by remember(currentPosition) { mutableFloatStateOf(currentPosition.toFloat()) }
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+    val timeFontSize = if (isLandscape) (14 * scale).sp else (12 * scale).sp
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = formatTime(currentPosition), color = Color.Gray, fontSize = (10 * scale).sp)
+            Text(text = formatTime(currentPosition), color = Color.Gray, fontSize = timeFontSize)
             Slider(
                 value = sliderPosition,
                 onValueChange = { sliderPosition = it },
@@ -317,7 +324,7 @@ private fun ProgressBar(
                     inactiveTrackColor = Color.Gray
                 )
             )
-            Text(text = formatTime(duration), color = Color.Gray, fontSize = (10 * scale).sp)
+            Text(text = formatTime(duration), color = Color.Gray, fontSize = timeFontSize)
         }
     }
 }

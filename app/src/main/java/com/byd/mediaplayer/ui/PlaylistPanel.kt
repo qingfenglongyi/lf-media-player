@@ -170,6 +170,8 @@ fun PlaylistPanel(
     onBackFromPlaylist: (() -> Unit)? = null,
     getPlaylistSongs: ((String) -> List<Song>)? = null,
     onSetMusicDirectory: (() -> Unit)? = null,
+    onPlaySongFromLibrary: ((Song) -> Unit)? = null,
+    onPlayAllSongs: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     // 对话框相关状态
@@ -482,7 +484,9 @@ fun PlaylistPanel(
                                             confirmAction = { onDeleteSongsFromLibrary?.invoke(ids) }
                                             showConfirmDialog = true
                                         },
-                                        onSetMusicDirectory = onSetMusicDirectory
+                                        onSetMusicDirectory = onSetMusicDirectory,
+                                        onPlaySongFromLibrary = onPlaySongFromLibrary,
+                                        onPlayAllSongs = onPlayAllSongs
                                     )
                                 }
                             } else {
@@ -529,7 +533,9 @@ fun PlaylistPanel(
                                         confirmAction = { onDeleteSongsFromLibrary?.invoke(ids) }
                                         showConfirmDialog = true
                                     },
-                                    onSetMusicDirectory = onSetMusicDirectory
+                                    onSetMusicDirectory = onSetMusicDirectory,
+                                    onPlaySongFromLibrary = onPlaySongFromLibrary,
+                                    onPlayAllSongs = onPlayAllSongs
                                 )
                             }
                         }
@@ -838,7 +844,9 @@ private fun LibraryContent(
     onAddToQueue: ((Set<Int>) -> Unit)? = null,
     onAddToPlaylist: ((Set<Int>) -> Unit)? = null,
     onDeleteFromLibrary: ((Set<Int>) -> Unit)? = null,
-    onSetMusicDirectory: (() -> Unit)? = null
+    onSetMusicDirectory: (() -> Unit)? = null,
+    onPlaySongFromLibrary: ((Song) -> Unit)? = null,
+    onPlayAllSongs: (() -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // 搜索框：支持按歌曲名、艺术家、专辑搜索
@@ -909,6 +917,8 @@ private fun LibraryContent(
                             onDeleteFromLibrary?.invoke(indices)
                         },
                         onSetMusicDirectory = onSetMusicDirectory,
+                        onPlaySongFromLibrary = onPlaySongFromLibrary,
+                        onPlayAllSongs = onPlayAllSongs,
                         isMultiSelectMode = isMultiSelectMode
                     )
                 }
@@ -997,6 +1007,8 @@ private fun LibrarySongsContent(
     onAddToPlaylist: (Set<Int>) -> Unit,
     onDeleteFromLibrary: (Set<Int>) -> Unit,
     onSetMusicDirectory: (() -> Unit)? = null,
+    onPlaySongFromLibrary: ((Song) -> Unit)? = null,
+    onPlayAllSongs: (() -> Unit)? = null,
     isMultiSelectMode: Boolean = false
 ) {
     var showDropdownMenu by remember { mutableStateOf(false) }
@@ -1056,6 +1068,14 @@ private fun LibrarySongsContent(
                     )
                     Divider()
                 }
+                // 播放全部歌曲选项
+                DropdownMenuItem(
+                    text = { Text("播放全部歌曲") },
+                    onClick = {
+                        onPlayAllSongs?.invoke()
+                        showDropdownMenu = false
+                    }
+                )
                 // 设置音乐目录选项
                 DropdownMenuItem(
                     text = { Text("设置音乐目录") },
@@ -1098,7 +1118,8 @@ private fun LibrarySongsContent(
                                 if (isMultiSelectMode) {
                                     onSelectionChange(index)
                                 } else {
-                                    onSongClick(index)
+                                    val song = songs.getOrNull(index)
+                                    song?.let { onPlaySongFromLibrary?.invoke(it) }
                                 }
                             }
                             .background(if (isSelected) Color(0xFF2A2A4E) else Color.Transparent)

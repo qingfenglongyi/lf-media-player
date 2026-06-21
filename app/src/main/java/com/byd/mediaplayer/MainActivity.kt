@@ -307,6 +307,19 @@ class MainActivity : ComponentActivity() {
                     loadedAlbums = MediaStoreHelper.getAllAlbums(this@MainActivity)
                 }
 
+                // 恢复保存的播放列表
+                var restoredPlaylist: List<Song>? = null
+                var restoredIndex = 0
+                var restoredMode = "LIST_LOOP"
+                if (!preferencesManager.isFirstLaunch) {
+                    val restored = repository.restoreCurrentPlaylist(allSongs)
+                    if (restored != null) {
+                        restoredPlaylist = restored.first
+                        restoredIndex = restored.second
+                        restoredMode = restored.third
+                    }
+                }
+
                 // 切回主线程更新 UI 状态
                 withContext(Dispatchers.Main) {
                     playlists = playlistData
@@ -321,17 +334,16 @@ class MainActivity : ComponentActivity() {
                     artists = loadedArtists
                     albums = loadedAlbums
 
-                    // 仅在非首次启动时恢复播放状态（避免卸载重装后自动播放）
-                    if (!preferencesManager.isFirstLaunch && playlist.isNotEmpty()) {
-                        val startIndex = preferencesManager.lastPlayedSongId.let { lastId ->
-                            playlist.indexOfFirst { it.id == lastId }.takeIf { it >= 0 } ?: 0
-                        }
-                        manager.setPlaylist(playlist, startIndex)
-                        Logger.i(TAG, "恢复播放列表: index=$startIndex")
+                    // 恢复播放列表（非首次启动时）
+                    if (restoredPlaylist != null && restoredPlaylist.isNotEmpty()) {
+                        playlist = restoredPlaylist
+                        playMode = PlayMode.valueOf(restoredMode)
+                        manager.setPlaylist(restoredPlaylist, restoredIndex)
+                        Logger.i(TAG, "恢复播放列表: ${restoredPlaylist.size}首, index=$restoredIndex, mode=$restoredMode")
                     } else {
-                        // 首次启动，标记并等待用户主动播放
+                        // 首次启动或无保存数据，标记并等待用户主动播放
                         preferencesManager.isFirstLaunch = false
-                        Logger.i(TAG, "首次启动，不自动恢复播放状态")
+                        Logger.i(TAG, "首次启动或无播放列表数据，不自动恢复播放状态")
                     }
                 }
             }
@@ -706,6 +718,40 @@ class MainActivity : ComponentActivity() {
             getPlaylistSongs = { name -> playlistSongCache[name] ?: emptyList() },
             onSetMusicDirectory = {
                 openDirectoryPicker()
+            },
+            onPlaySongFromLibrary = { song ->
+                playerService?.getPlayerManager()?.let { manager ->
+                    val currentList = manager.playlist.toMutableList()
+                    val newIndex = if (song in currentList) {
+                        currentList.indexOf(song)
+                    } else {
+                        currentList.add(song)
+                        currentList.size - 1
+                    }
+                    manager.setPlaylist(currentList, newIndex)
+                    playlist = currentList
+                    lyrics = null
+                    showPlaylistPanel = false
+                    val repository = MusicRepository.getInstance(this@MainActivity)
+                    activityScope.launch(Dispatchers.IO) {
+                        repository.saveCurrentPlaylist(currentList, newIndex, playMode.name)
+                    }
+                }
+            },
+            onPlayAllSongs = {
+                playerService?.getPlayerManager()?.let { manager ->
+                    if (librarySongs.isNotEmpty()) {
+                        manager.setPlaylist(librarySongs, 0)
+                        playlist = librarySongs
+                        lyrics = null
+                        showPlaylistPanel = false
+                        preferencesManager.isFirstLaunch = false
+                        val repository = MusicRepository.getInstance(this@MainActivity)
+                        activityScope.launch(Dispatchers.IO) {
+                            repository.saveCurrentPlaylist(librarySongs, 0, playMode.name)
+                        }
+                    }
+                }
             },
             playlists = playlists,
             onRenamePlaylist = { oldName, newName -> renamePlaylist(oldName, newName) }
