@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.byd.mediaplayer.model.Song
@@ -182,6 +183,12 @@ fun PlaylistPanel(
     var showAddToPlaylistDialog by remember { mutableStateOf(false) } // 控制"添加到歌单"对话框显示
     var songsToAdd by remember { mutableStateOf<List<Song>>(emptyList()) }    // 待添加到歌单的歌曲列表
 
+    // 通用确认对话框
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    var confirmTitle by remember { mutableStateOf("") }
+    var confirmMessage by remember { mutableStateOf("") }
+    var confirmAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
     // 当前视图状态，用于歌曲库的二级导航
     var viewState by remember { mutableStateOf(LibraryViewState.SONGS) }
 
@@ -285,12 +292,18 @@ fun PlaylistPanel(
                                         isMultiSelectMode = false
                                         selectedSongIndices = emptySet()
                                     },
-                                    onClearPlaylist = onClearPlaylist,
+                                    onClearPlaylist = {
+                                        confirmTitle = "清空播放列表"
+                                        confirmMessage = "确定要清空播放列表吗？"
+                                        confirmAction = { onClearPlaylist?.invoke() }
+                                        showConfirmDialog = true
+                                    },
                                     // 删除选中的歌曲
                                     onDeleteSelected = { indices ->
-                                        onDeleteSongsFromPlaylist?.invoke(indices.toList())
-                                        isMultiSelectMode = false
-                                        selectedSongIndices = emptySet()
+                                        confirmTitle = "删除歌曲"
+                                        confirmMessage = "确定要从播放列表中删除选中的 ${indices.size} 首歌曲吗？"
+                                        confirmAction = { onDeleteSongsFromPlaylist?.invoke(indices.toList()) }
+                                        showConfirmDialog = true
                                     },
                                     // 添加选中歌曲到歌单
                                     onAddToPlaylist = { songs ->
@@ -321,11 +334,17 @@ fun PlaylistPanel(
                                             isMultiSelectMode = true
                                         }
                                     },
-                                    onClearPlaylist = onClearPlaylist,
+                                    onClearPlaylist = {
+                                        confirmTitle = "清空播放列表"
+                                        confirmMessage = "确定要清空播放列表吗？"
+                                        confirmAction = { onClearPlaylist?.invoke() }
+                                        showConfirmDialog = true
+                                    },
                                     onDeleteSelected = { indices ->
-                                        onDeleteSongsFromPlaylist?.invoke(indices.toList())
-                                        isMultiSelectMode = false
-                                        selectedSongIndices = emptySet()
+                                        confirmTitle = "删除歌曲"
+                                        confirmMessage = "确定要从播放列表中删除选中的 ${indices.size} 首歌曲吗？"
+                                        confirmAction = { onDeleteSongsFromPlaylist?.invoke(indices.toList()) }
+                                        showConfirmDialog = true
                                     },
                                     onAddToPlaylist = { songs ->
                                         songsToAdd = songs
@@ -363,6 +382,12 @@ fun PlaylistPanel(
                                     onDeletePlaylist = {
                                         playlistToDelete = selectedPlaylistName
                                         showDeleteDialog = true
+                                    },
+                                    onRequestConfirm = { title, message, action ->
+                                        confirmTitle = title
+                                        confirmMessage = message
+                                        confirmAction = action
+                                        showConfirmDialog = true
                                     }
                                 )
                             } else {
@@ -406,9 +431,10 @@ fun PlaylistPanel(
                                         },
                                         onDeleteFromLibrary = { indices ->
                                             val ids = indices.map { allSongs[it].id }
-                                            onDeleteSongsFromLibrary?.invoke(ids)
-                                            libraryMultiSelectMode = false
-                                            librarySelectedIndices = emptySet()
+                                            confirmTitle = "删除歌曲"
+                                            confirmMessage = "确定要从歌曲库中删除选中的 ${ids.size} 首歌曲吗？"
+                                            confirmAction = { onDeleteSongsFromLibrary?.invoke(ids) }
+                                            showConfirmDialog = true
                                         },
                                         isMultiSelectMode = libraryMultiSelectMode
                                     )
@@ -451,7 +477,10 @@ fun PlaylistPanel(
                                         },
                                         onDeleteFromLibrary = { indices ->
                                             val ids = indices.map { allSongs[it].id }
-                                            onDeleteSongsFromLibrary?.invoke(ids)
+                                            confirmTitle = "删除歌曲"
+                                            confirmMessage = "确定要从歌曲库中删除选中的 ${ids.size} 首歌曲吗？"
+                                            confirmAction = { onDeleteSongsFromLibrary?.invoke(ids) }
+                                            showConfirmDialog = true
                                         },
                                         onSetMusicDirectory = onSetMusicDirectory
                                     )
@@ -495,7 +524,10 @@ fun PlaylistPanel(
                                     },
                                     onDeleteFromLibrary = { indices ->
                                         val ids = indices.map { allSongs[it].id }
-                                        onDeleteSongsFromLibrary?.invoke(ids)
+                                        confirmTitle = "删除歌曲"
+                                        confirmMessage = "确定要从歌曲库中删除选中的 ${ids.size} 首歌曲吗？"
+                                        confirmAction = { onDeleteSongsFromLibrary?.invoke(ids) }
+                                        showConfirmDialog = true
                                     },
                                     onSetMusicDirectory = onSetMusicDirectory
                                 )
@@ -598,6 +630,39 @@ fun PlaylistPanel(
                                     }
                                 ) {
                                     Text("删除", color = Color.Red)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 通用确认对话框（用于删除/清空操作的二次确认）
+            if (showConfirmDialog) {
+                Dialog(onDismissRequest = { showConfirmDialog = false; confirmAction = null }) {
+                    Surface(
+                        shape = androidx.compose.material3.MaterialTheme.shapes.extraLarge,
+                        color = Color(0xFF1A1A2E)
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp)) {
+                            Text(confirmTitle, color = Color.White, fontSize = 20.sp)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(confirmMessage, color = Color.White)
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = { showConfirmDialog = false; confirmAction = null }) {
+                                    Text("取消")
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                TextButton(onClick = {
+                                    confirmAction?.invoke()
+                                    showConfirmDialog = false
+                                    confirmAction = null
+                                }) {
+                                    Text("确定", color = Color.Red)
                                 }
                             }
                         }
@@ -841,7 +906,10 @@ private fun LibraryContent(
                             onAddToPlaylist?.invoke(indices)
                         },
                         onDeleteFromLibrary = { indices ->
-                            onDeleteFromLibrary?.invoke(indices)
+                            confirmTitle = "删除歌曲"
+                            confirmMessage = "确定要从歌曲库中删除选中的 ${indices.size} 首歌曲吗？"
+                            confirmAction = { onDeleteFromLibrary?.invoke(indices) }
+                            showConfirmDialog = true
                         },
                         onSetMusicDirectory = onSetMusicDirectory,
                         isMultiSelectMode = isMultiSelectMode
@@ -963,7 +1031,8 @@ private fun LibrarySongsContent(
             )
             DropdownMenu(
                 expanded = showDropdownMenu,
-                onDismissRequest = { showDropdownMenu = false }
+                onDismissRequest = { showDropdownMenu = false },
+                offset = DpOffset(0.dp, 0.dp)
             ) {
                 // 有选中歌曲时显示批量操作选项
                 if (selectedIndices.isNotEmpty()) {
@@ -1495,7 +1564,8 @@ private fun PlayingListContent(
             )
             DropdownMenu(
                 expanded = showDropdownMenu,
-                onDismissRequest = { showDropdownMenu = false }
+                onDismissRequest = { showDropdownMenu = false },
+                offset = DpOffset(0.dp, 0.dp)
             ) {
                 // 清空播放列表选项
                 DropdownMenuItem(
@@ -1795,7 +1865,8 @@ private fun MultiSelectPlaylistContent(
             )
             DropdownMenu(
                 expanded = showDropdownMenu,
-                onDismissRequest = { showDropdownMenu = false }
+                onDismissRequest = { showDropdownMenu = false },
+                offset = DpOffset(0.dp, 0.dp)
             ) {
                 DropdownMenuItem(
                     text = { Text("清空播放列表") },
@@ -2068,7 +2139,8 @@ private fun LibraryMultiSelectContent(
             )
             DropdownMenu(
                 expanded = showDropdownMenu,
-                onDismissRequest = { showDropdownMenu = false }
+                onDismissRequest = { showDropdownMenu = false },
+                offset = DpOffset(0.dp, 0.dp)
             ) {
                 DropdownMenuItem(
                     text = { Text("添加到播放列表") },
@@ -2185,7 +2257,8 @@ private fun PlaylistDetailContent(
     allSongs: List<Song> = emptyList(),
     currentSong: Song? = null,
     onRenamePlaylist: (() -> Unit)? = null,
-    onDeletePlaylist: (() -> Unit)? = null
+    onDeletePlaylist: (() -> Unit)? = null,
+    onRequestConfirm: ((String, String, () -> Unit) -> Unit)? = null
 ) {
     var detailMultiSelect by remember { mutableStateOf(false) }
     var detailSelected by remember { mutableStateOf<Set<Int>>(emptySet()) }
@@ -2296,11 +2369,18 @@ private fun PlaylistDetailContent(
                     color = Color.Red,
                     fontSize = 13.sp,
                     modifier = Modifier.clickable {
-                        detailSelected.sortedDescending().forEach { idx ->
-                            onDeleteSong?.invoke(idx)
+                        val toDelete = detailSelected.toSet()
+                        if (onRequestConfirm != null) {
+                            onRequestConfirm!!.invoke("删除歌曲", "确定要从歌单中删除选中的 ${toDelete.size} 首歌曲吗？") {
+                                toDelete.sortedDescending().forEach { idx -> onDeleteSong?.invoke(idx) }
+                                detailSelected = emptySet()
+                                detailMultiSelect = false
+                            }
+                        } else {
+                            toDelete.sortedDescending().forEach { idx -> onDeleteSong?.invoke(idx) }
+                            detailSelected = emptySet()
+                            detailMultiSelect = false
                         }
-                        detailSelected = emptySet()
-                        detailMultiSelect = false
                     }
                 )
                 Spacer(modifier = Modifier.width(16.dp))

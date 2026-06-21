@@ -300,23 +300,24 @@ private fun ProgressBar(
     var sliderPosition by remember(currentPosition) { mutableFloatStateOf(currentPosition.toFloat()) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Slider(
-            value = sliderPosition,
-            onValueChange = { sliderPosition = it },
-            onValueChangeFinished = { onSeek(sliderPosition.toLong()) },
-            valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
-            colors = SliderDefaults.colors(
-                thumbColor = Color(0xFF00D4AA),
-                activeTrackColor = Color(0xFF00D4AA),
-                inactiveTrackColor = Color.Gray
-            )
-        )
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = formatTime(currentPosition), color = Color.Gray, fontSize = (12 * scale).sp)
-            Text(text = formatTime(duration), color = Color.Gray, fontSize = (12 * scale).sp)
+            Text(text = formatTime(currentPosition), color = Color.Gray, fontSize = (10 * scale).sp)
+            Slider(
+                value = sliderPosition,
+                onValueChange = { sliderPosition = it },
+                onValueChangeFinished = { onSeek(sliderPosition.toLong()) },
+                valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
+                modifier = Modifier.weight(1f),
+                colors = SliderDefaults.colors(
+                    thumbColor = Color(0xFF00D4AA),
+                    activeTrackColor = Color(0xFF00D4AA),
+                    inactiveTrackColor = Color.Gray
+                )
+            )
+            Text(text = formatTime(duration), color = Color.Gray, fontSize = (10 * scale).sp)
         }
     }
 }

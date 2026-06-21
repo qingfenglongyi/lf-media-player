@@ -252,7 +252,6 @@ class MainActivity : ComponentActivity() {
                     val newSongs = MediaStoreHelper.querySongsFromDirectory(this@MainActivity, selectedUri)
                     librarySongs = newSongs
                     libraryDisplaySongs = newSongs
-                    playlist = newSongs
                     Logger.i(TAG, "歌曲重新加载完成，共 ${newSongs.size} 首")
                 }
             }
@@ -314,11 +313,9 @@ class MainActivity : ComponentActivity() {
                     if (musicDirectoryUri != null && librarySongs.isEmpty()) {
                         librarySongs = allSongs
                         libraryDisplaySongs = allSongs
-                        playlist = allSongs
                     } else if (musicDirectoryUri == null) {
                         librarySongs = emptyList()
                         libraryDisplaySongs = emptyList()
-                        playlist = emptyList()
                         Logger.i(TAG, "未设置音乐目录，等待用户设置")
                     }
                     artists = loadedArtists
