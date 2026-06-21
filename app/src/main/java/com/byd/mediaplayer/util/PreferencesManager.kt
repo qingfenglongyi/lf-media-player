@@ -58,7 +58,10 @@ class PreferencesManager(context: Context) {
     fun exportToExternalStorage() {
         try {
             val dir = backupFile.parentFile
-            if (dir != null && !dir.exists()) dir.mkdirs()
+            if (dir == null || (!dir.exists() && !dir.mkdirs())) {
+                Logger.w(TAG, "外部存储目录不可用，跳过导出")
+                return
+            }
 
             val json = JSONObject().apply {
                 put(KEY_LAST_SONG_ID, lastPlayedSongId)

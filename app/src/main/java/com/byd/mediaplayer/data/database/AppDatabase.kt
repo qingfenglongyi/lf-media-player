@@ -32,16 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                val dbDir = File(
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
-                    "lf_media_player"
-                )
-                if (!dbDir.exists()) {
-                    dbDir.mkdirs()
-                }
-                val dbPath = File(dbDir, DB_NAME).absolutePath
-
-                migrateInternalDbIfNeeded(context.applicationContext, dbPath)
+                val dbPath = resolveDbPath(context.applicationContext)
 
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
@@ -53,6 +44,23 @@ abstract class AppDatabase : RoomDatabase() {
                 INSTANCE = instance
                 instance
             }
+        }
+
+        /** 解析数据库路径：优先外部存储，失败则回退内部存储 */
+        private fun resolveDbPath(context: Context): String {
+            val dbDir = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+                "lf_media_player"
+            )
+            if (dbDir.mkdirs() || dbDir.exists()) {
+                val externalPath = File(dbDir, DB_NAME).absolutePath
+                migrateInternalDbIfNeeded(context, externalPath)
+                Logger.i(TAG, "使用外部存储数据库: $externalPath")
+                return externalPath
+            }
+            // 外部存储不可用，回退到内部默认路径
+            Logger.w(TAG, "外部存储目录不可用，回退到内部存储")
+            return DB_NAME
         }
 
         /** 首次使用外部路径时，从内部存储复制旧数据库 */
