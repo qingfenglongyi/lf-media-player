@@ -31,6 +31,9 @@ class PlayerService : Service() {
     /** 播放器管理器实例 */
     private lateinit var playerManager: PlayerManager
 
+    /** 媒体会话管理器实例 */
+    private lateinit var mediaSessionManager: MediaSessionManager
+
     /** Binder用于绑定服务 */
     private val binder = LocalBinder()
 
@@ -47,9 +50,8 @@ class PlayerService : Service() {
     override fun onCreate() {
         super.onCreate()
         Logger.d(TAG, "PlayerService onCreate")
-        // 初始化播放器管理器
         playerManager = PlayerManager(this)
-        // 创建通知通道（Android 8.0+需要）
+        mediaSessionManager = MediaSessionManager(this, playerManager)
         createNotificationChannel()
     }
 
@@ -92,6 +94,19 @@ class PlayerService : Service() {
 
     /** 获取PlayerManager实例 */
     fun getPlayerManager(): PlayerManager = playerManager
+
+    /** 获取MediaSessionManager实例 */
+    fun getMediaSessionManager(): MediaSessionManager = mediaSessionManager
+
+    /** 更新MediaSession状态 */
+    fun updateMediaSessionState(song: com.byd.mediaplayer.model.Song?, isPlaying: Boolean) {
+        Logger.d(TAG, "更新MediaSession状态: ${song?.title}, isPlaying: $isPlaying")
+        mediaSessionManager.activeSession()
+        if (song != null) {
+            mediaSessionManager.updateMetadata(song)
+        }
+        mediaSessionManager.updatePlaybackState(isPlaying, playerManager.currentPosition)
+    }
 
     /**
      * 启动前台服务
@@ -183,7 +198,8 @@ class PlayerService : Service() {
             // 使用媒体样式，在锁屏和通知栏显示媒体控件
             .setStyle(
                 MediaStyle()
-                    .setShowActionsInCompactView(0, 1, 2)  // 在紧凑视图显示3个操作按钮
+                    .setMediaSession(mediaSessionManager.getSession().sessionToken)
+                    .setShowActionsInCompactView(0, 1, 2)
             )
             .setOngoing(isPlaying)  // 正在播放时持续显示
             .build()
@@ -209,6 +225,7 @@ class PlayerService : Service() {
     /** 服务销毁时释放资源 */
     override fun onDestroy() {
         Logger.d(TAG, "PlayerService onDestroy")
+        mediaSessionManager.release()
         playerManager.release()
         super.onDestroy()
     }

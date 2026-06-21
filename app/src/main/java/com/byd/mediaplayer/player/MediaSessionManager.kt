@@ -4,6 +4,7 @@ import android.content.Context
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
+import com.byd.mediaplayer.util.Logger
 
 /**
  * 媒体会话管理器
@@ -15,16 +16,36 @@ import android.support.v4.media.session.PlaybackStateCompat
  * @param context Android上下文
  * @param playerManager 播放器管理器实例
  */
-class MediaSessionManager(context: Context, playerManager: PlayerManager) {
+class MediaSessionManager(context: Context, private val playerManager: PlayerManager) {
+
+    private val TAG = "MediaSessionManager"
 
     /** 媒体会话实例 */
     private val mediaSession: MediaSessionCompat
 
     init {
-        // 创建媒体会话
         mediaSession = MediaSessionCompat(context, "LFMediaPlayer").apply {
             setCallback(object : MediaSessionCompat.Callback() {
-                // 可在此处理线控按钮事件（当前未实现）
+                override fun onPlay() {
+                    Logger.d(TAG, "MediaSession回调: onPlay")
+                    playerManager.play()
+                }
+                override fun onPause() {
+                    Logger.d(TAG, "MediaSession回调: onPause")
+                    playerManager.pause()
+                }
+                override fun onSkipToNext() {
+                    Logger.d(TAG, "MediaSession回调: onSkipToNext")
+                    playerManager.playNext()
+                }
+                override fun onSkipToPrevious() {
+                    Logger.d(TAG, "MediaSession回调: onSkipToPrevious")
+                    playerManager.playPrevious()
+                }
+                override fun onSeekTo(pos: Long) {
+                    Logger.d(TAG, "MediaSession回调: onSeekTo pos=$pos")
+                    playerManager.seekTo(pos)
+                }
             })
         }
     }

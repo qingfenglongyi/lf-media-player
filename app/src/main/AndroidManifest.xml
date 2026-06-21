@@ -6,6 +6,10 @@
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
+    <!-- 外部存储写入权限（数据库持久化，Android 10以下有效） -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+
     <!-- 后台播放权限 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
@@ -33,11 +37,8 @@
 
         <service
             android:name=".player.PlayerService"
-            android:exported="false"
+            android:exported="true"
             android:foregroundServiceType="mediaPlayback">
-            <intent-filter>
-                <action android:name="androidx.media3.session.MediaSessionService" />
-            </intent-filter>
         </service>
 
     </application>

@@ -1,6 +1,7 @@
 package com.byd.mediaplayer.data.database
 
 import android.content.Context
+import android.os.Environment
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -8,60 +9,72 @@ import com.byd.mediaplayer.model.Config
 import com.byd.mediaplayer.model.Playlist
 import com.byd.mediaplayer.model.PlaylistSong
 import com.byd.mediaplayer.model.SongEntity
+import com.byd.mediaplayer.util.Logger
+import java.io.File
 
-/**
- * Room数据库抽象类
- * 管理应用程序的本地数据库，包含播放列表、歌曲、配置等数据
- *
- * 数据库版本：2
- * 使用fallbackToDestructiveMigration()在版本升级时自动重建数据库
- */
 @Database(
     entities = [Playlist::class, PlaylistSong::class, SongEntity::class, Config::class],
     version = 2,
-    exportSchema = false  // 不导出数据库schema
+    exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
-    /**
-     * 获取播放列表数据访问对象
-     */
     abstract fun playlistDao(): PlaylistDao
-
-    /**
-     * 获取歌曲数据访问对象
-     */
     abstract fun songDao(): SongDao
-
-    /**
-     * 获取配置数据访问对象
-     */
     abstract fun configDao(): ConfigDao
 
     companion object {
-        // 单例模式：确保整个应用只有一个数据库实例
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
-        /**
-         * 获取数据库单例实例
-         *
-         * @param context Android上下文
-         * @return 数据库实例
-         */
+        private const val TAG = "AppDatabase"
+        private const val DB_NAME = "lf_media_player_db"
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                // 首次创建数据库实例
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,  // 使用applicationContext避免内存泄漏
-                    AppDatabase::class.java,      // 数据库类
-                    "lf_media_player_db"         // 数据库文件名
+                val dbDir = File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+                    "lf_media_player"
                 )
-                    // 版本升级时删除旧数据库再创建新数据库
+                if (!dbDir.exists()) {
+                    dbDir.mkdirs()
+                }
+                val dbPath = File(dbDir, DB_NAME).absolutePath
+
+                migrateInternalDbIfNeeded(context.applicationContext, dbPath)
+
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
+                    dbPath
+                )
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance
+            }
+        }
+
+        /** 首次使用外部路径时，从内部存储复制旧数据库 */
+        private fun migrateInternalDbIfNeeded(context: Context, externalDbPath: String) {
+            val externalDbFile = File(externalDbPath)
+            if (externalDbFile.exists()) return
+
+            val internalDbFile = context.getDatabasePath(DB_NAME)
+            if (!internalDbFile.exists()) return
+
+            try {
+                val internalDir = File(internalDbFile.parent!!)
+                for (suffix in arrayOf("", "-wal", "-shm")) {
+                    val src = File(internalDir, "$DB_NAME$suffix")
+                    val dst = File("$externalDbPath$suffix")
+                    if (src.exists()) {
+                        src.copyTo(dst, overwrite = false)
+                    }
+                }
+                Logger.i(TAG, "数据库从内部存储迁移到外部存储成功")
+            } catch (e: Exception) {
+                Logger.e(TAG, "数据库迁移失败: ${e.message}")
             }
         }
     }

@@ -122,6 +122,7 @@ class MainActivity : ComponentActivity() {
         Logger.d(TAG, "MainActivity onCreate - 开始")
 
         preferencesManager = PreferencesManager(this)
+        preferencesManager.importFromExternalStorage()
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
         Logger.d(TAG, "MainActivity onCreate - setContent前")
@@ -170,6 +171,7 @@ class MainActivity : ComponentActivity() {
             activityScope.launch(Dispatchers.IO) {
                 repository.saveCurrentPlaylist(manager.playlist, manager.currentIndex, manager.playMode.name)
             }
+            preferencesManager.exportToExternalStorage()
         }
     }
 
@@ -205,6 +207,7 @@ class MainActivity : ComponentActivity() {
 
     private fun loadSongsAndStartPlay() {
         val service = playerService ?: return
+        service.getMediaSessionManager().activeSession()
         service.startForegroundService()
         // 歌曲加载和播放状态恢复统一由 LaunchedEffect(playerService) 处理
     }
@@ -385,11 +388,13 @@ class MainActivity : ComponentActivity() {
                     Logger.d(TAG, "监听器收到状态变化: isPlaying=$playing, song=${song?.title}")
                     currentSong = song
                     isPlaying = playing
+                    playerService?.updateMediaSessionState(song, playing)
                 }
 
                 override fun onPositionChanged(position: Long, len: Long) {
                     currentPosition = position
                     duration = len
+                    playerService?.getMediaSessionManager()?.updatePlaybackState(isPlaying, position)
                 }
             }
 
