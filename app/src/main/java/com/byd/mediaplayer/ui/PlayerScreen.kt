@@ -2,6 +2,10 @@ package com.byd.mediaplayer.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -107,12 +111,6 @@ fun PlayerScreen(
         }
     }
 
-    // 点击屏幕恢复控制区
-    fun onScreenTap() {
-        lastInteractionTime = System.currentTimeMillis()
-        if (!controlsVisible) controlsVisible = true
-    }
-
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
@@ -120,29 +118,116 @@ fun PlayerScreen(
     ) {
         val baseHeight = 700.dp
         val scale = (maxHeight / baseHeight).coerceIn(0.5f, 2.0f)
+        val gap = (12 * scale).dp
+        val titleHeight = (50 * scale).dp
+        val outerPad = (10 * scale).dp
 
+        // 点击屏幕恢复控制区
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(outerPad)
+                .clickable {
+                    lastInteractionTime = System.currentTimeMillis()
+                    if (!controlsVisible) controlsVisible = true
+                },
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // 歌曲信息
+            val songTitle = currentSong?.title ?: "未选择歌曲"
+            val songArtist = currentSong?.artist ?: "比亚迪音乐播放器"
+            val songInfo = "$songTitle - $songArtist"
+            Box(modifier = Modifier.height(titleHeight)) {
+                AutoScrollingText(
+                    text = songInfo,
+                    modifier = Modifier.padding(vertical = (10 * scale).dp),
+                    fontSize = (20 * scale).sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(gap))
+
+            // 中心视图
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                AnimatedContent(
+                    targetState = centerView,
+                    label = "centerView"
+                ) { view ->
+                    when (view) {
+                        CenterView.VINYL -> {
+                            VinylView(
+                                song = currentSong,
+                                isPlaying = isPlaying,
+                                scale = scale,
+                                onClick = { centerView = CenterView.LYRIC }
+                            )
+                        }
+                        CenterView.LYRIC -> {
+                            LyricView(
+                                lyrics = lyrics,
+                                currentTime = currentPosition,
+                                scale = scale,
+                                onClick = { centerView = CenterView.VINYL }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 进度条和控制区（可自动隐藏）
+            AnimatedVisibility(visible = controlsVisible) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Spacer(modifier = Modifier.height(gap))
+
+                    ProgressBar(
+                        currentPosition = currentPosition,
+                        duration = duration,
+                        onSeek = onSeek,
+                        scale = scale
+                    )
+
+                    Spacer(modifier = Modifier.height(gap))
+
+                    PlaybackControls(
+                        isPlaying = isPlaying,
+                        playMode = playMode,
+                        onPlayPause = onPlayPause,
+                        onNext = onNext,
+                        onPrevious = onPrevious,
+                        onPlayModeChange = onPlayModeChange,
+                        onPlaylistToggle = onPlaylistToggle,
+                        scale = scale
+                    )
+                }
+            }
+        }
+
+        // 播放列表面板（覆盖模式，横屏从右侧占2/3宽，竖屏从底部占2/3高）
         if (isLandscape) {
-            // ===== 横屏布局：列表区在左2/3，播放区在右1/3 =====
-            Row(modifier = Modifier.fillMaxSize()) {
-                // 左侧：列表区
-                Box(
-                    modifier = Modifier
-                        .weight(2f)
-                        .fillMaxHeight()
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.667f)
+                    .align(Alignment.CenterEnd)
+            ) {
+                AnimatedVisibility(
+                    visible = showPlaylistPanel,
+                    enter = slideInHorizontally { it },
+                    exit = slideOutHorizontally { it }
                 ) {
-                    PlaylistPanel(
-                        visible = true,
-                        currentPlaylist = playlist,
-                        allSongs = librarySongs,
+                    PlaylistPanelContent(
+                        playlist = playlist,
+                        librarySongs = librarySongs,
                         playlists = playlists,
-                        currentTab = playlistTab,
-                        currentSongIndex = playlist.indexOf(currentSong),
+                        playlistTab = playlistTab,
+                        currentSong = currentSong,
                         onTabChange = onPlaylistTabChange,
-                        onSongClick = { index ->
-                            if (playlist.isNotEmpty() && index in playlist.indices) {
-                                onSongClick(index)
-                            }
-                        },
+                        onSongClick = onSongClick,
                         onDismiss = onPlaylistDismiss,
                         onCreatePlaylist = onCreatePlaylist,
                         onDeletePlaylist = onDeletePlaylist,
@@ -176,85 +261,27 @@ fun PlayerScreen(
                         onPlayAllSongs = onPlayAllSongs
                     )
                 }
-
-                // 右侧：播放区
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable { onScreenTap() },
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    PlayerContent(
-                        currentSong = currentSong,
-                        isPlaying = isPlaying,
-                        currentPosition = currentPosition,
-                        duration = duration,
-                        playMode = playMode,
-                        lyrics = lyrics,
-                        centerView = centerView,
-                        onCenterViewChange = { centerView = it },
-                        controlsVisible = controlsVisible,
-                        onPlayPause = onPlayPause,
-                        onNext = onNext,
-                        onPrevious = onPrevious,
-                        onSeek = onSeek,
-                        onPlayModeChange = onPlayModeChange,
-                        onPlaylistToggle = onPlaylistToggle,
-                        scale = scale
-                    )
-                }
             }
         } else {
-            // ===== 竖屏布局：播放区在上，列表区在下2/3 =====
-            Column(modifier = Modifier.fillMaxSize()) {
-                // 上方：播放区
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .clickable { onScreenTap() },
-                    horizontalAlignment = Alignment.CenterHorizontally
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight(0.667f)
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+            ) {
+                AnimatedVisibility(
+                    visible = showPlaylistPanel,
+                    enter = slideInVertically { it },
+                    exit = slideOutVertically { it }
                 ) {
-                    PlayerContent(
-                        currentSong = currentSong,
-                        isPlaying = isPlaying,
-                        currentPosition = currentPosition,
-                        duration = duration,
-                        playMode = playMode,
-                        lyrics = lyrics,
-                        centerView = centerView,
-                        onCenterViewChange = { centerView = it },
-                        controlsVisible = controlsVisible,
-                        onPlayPause = onPlayPause,
-                        onNext = onNext,
-                        onPrevious = onPrevious,
-                        onSeek = onSeek,
-                        onPlayModeChange = onPlayModeChange,
-                        onPlaylistToggle = onPlaylistToggle,
-                        scale = scale
-                    )
-                }
-
-                // 下方：列表区（占2/3高度）
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(0.667f)
-                ) {
-                    PlaylistPanel(
-                        visible = true,
-                        currentPlaylist = playlist,
-                        allSongs = librarySongs,
+                    PlaylistPanelContent(
+                        playlist = playlist,
+                        librarySongs = librarySongs,
                         playlists = playlists,
-                        currentTab = playlistTab,
-                        currentSongIndex = playlist.indexOf(currentSong),
+                        playlistTab = playlistTab,
+                        currentSong = currentSong,
                         onTabChange = onPlaylistTabChange,
-                        onSongClick = { index ->
-                            if (playlist.isNotEmpty() && index in playlist.indices) {
-                                onSongClick(index)
-                            }
-                        },
+                        onSongClick = onSongClick,
                         onDismiss = onPlaylistDismiss,
                         onCreatePlaylist = onCreatePlaylist,
                         onDeletePlaylist = onDeletePlaylist,
@@ -293,109 +320,93 @@ fun PlayerScreen(
     }
 }
 
+/** 列表面板内容（从PlaylistPanel提取，不含动画） */
 @Composable
-private fun PlayerContent(
+private fun BoxScope.PlaylistPanelContent(
+    playlist: List<Song>,
+    librarySongs: List<Song>,
+    playlists: List<Pair<String, Int>>,
+    playlistTab: PlaylistTab,
     currentSong: Song?,
-    isPlaying: Boolean,
-    currentPosition: Long,
-    duration: Long,
-    playMode: PlayMode,
-    lyrics: Lyrics?,
-    centerView: CenterView,
-    onCenterViewChange: (CenterView) -> Unit,
-    controlsVisible: Boolean,
-    onPlayPause: () -> Unit,
-    onNext: () -> Unit,
-    onPrevious: () -> Unit,
-    onSeek: (Long) -> Unit,
-    onPlayModeChange: () -> Unit,
-    onPlaylistToggle: () -> Unit,
-    scale: Float
+    onTabChange: (PlaylistTab) -> Unit,
+    onSongClick: (Int) -> Unit,
+    onDismiss: () -> Unit,
+    onCreatePlaylist: ((String) -> Unit)? = null,
+    onDeletePlaylist: ((String) -> Unit)? = null,
+    onAddToPlaylist: ((Song, String) -> Unit)? = null,
+    onAddSongsToPlaylist: ((List<Song>, String) -> Unit)? = null,
+    onAddSongsToQueue: ((List<Song>) -> Unit)? = null,
+    onPlayPlaylistSongs: ((List<Song>, Int) -> Unit)? = null,
+    onDeleteSongsFromPlaylist: ((List<Int>) -> Unit)? = null,
+    onRemoveSongFromPlaylist: ((String, Int) -> Unit)? = null,
+    onDeleteSongsFromLibrary: ((List<Long>) -> Unit)? = null,
+    onClearPlaylist: (() -> Unit)? = null,
+    onSearchQueryChange: ((String) -> Unit)? = null,
+    searchQuery: String = "",
+    sortType: LibrarySortType = LibrarySortType.ALL,
+    onSortTypeChange: ((LibrarySortType) -> Unit)? = null,
+    artists: List<String> = emptyList(),
+    albums: List<String> = emptyList(),
+    onArtistClick: ((String) -> Unit)? = null,
+    onAlbumClick: ((String) -> Unit)? = null,
+    selectedArtist: String? = null,
+    selectedAlbum: String? = null,
+    onBackFromArtist: (() -> Unit)? = null,
+    onBackFromAlbum: (() -> Unit)? = null,
+    onPlaylistClick: ((String) -> Unit)? = null,
+    onRenamePlaylist: ((String, String) -> Unit)? = null,
+    selectedPlaylistName: String? = null,
+    onBackFromPlaylist: (() -> Unit)? = null,
+    getPlaylistSongs: ((String) -> List<Song>)? = null,
+    onSetMusicDirectory: (() -> Unit)? = null,
+    onPlaySongFromLibrary: ((Song) -> Unit)? = null,
+    onPlayAllSongs: (() -> Unit)? = null
 ) {
-    val s = scale.coerceIn(0.5f, 2.0f)
-    val gap = (12 * scale).dp
-    val titleHeight = (50 * scale).dp
-    val outerPad = (10 * scale).dp
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(outerPad),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // 歌曲信息
-        val songTitle = currentSong?.title ?: "未选择歌曲"
-        val songArtist = currentSong?.artist ?: "比亚迪音乐播放器"
-        val songInfo = "$songTitle - $songArtist"
-        Box(modifier = Modifier.height(titleHeight)) {
-            AutoScrollingText(
-                text = songInfo,
-                modifier = Modifier.padding(vertical = (10 * scale).dp),
-                fontSize = (20 * scale).sp
-            )
-        }
-
-        Spacer(modifier = Modifier.height(gap))
-
-        // 中心视图
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            AnimatedContent(
-                targetState = centerView,
-                label = "centerView"
-            ) { view ->
-                when (view) {
-                    CenterView.VINYL -> {
-                        VinylView(
-                            song = currentSong,
-                            isPlaying = isPlaying,
-                            scale = scale,
-                            onClick = { onCenterViewChange(CenterView.LYRIC) }
-                        )
-                    }
-                    CenterView.LYRIC -> {
-                        LyricView(
-                            lyrics = lyrics,
-                            currentTime = currentPosition,
-                            scale = scale,
-                            onClick = { onCenterViewChange(CenterView.VINYL) }
-                        )
-                    }
-                }
+    PlaylistPanel(
+        visible = true,
+        currentPlaylist = playlist,
+        allSongs = librarySongs,
+        playlists = playlists,
+        currentTab = playlistTab,
+        currentSongIndex = playlist.indexOf(currentSong),
+        onTabChange = onTabChange,
+        onSongClick = { index ->
+            if (playlist.isNotEmpty() && index in playlist.indices) {
+                onSongClick(index)
             }
-        }
-
-        // 进度条和控制区（可自动隐藏）
-        AnimatedVisibility(visible = controlsVisible) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Spacer(modifier = Modifier.height(gap))
-
-                ProgressBar(
-                    currentPosition = currentPosition,
-                    duration = duration,
-                    onSeek = onSeek,
-                    scale = scale
-                )
-
-                Spacer(modifier = Modifier.height(gap))
-
-                PlaybackControls(
-                    isPlaying = isPlaying,
-                    playMode = playMode,
-                    onPlayPause = onPlayPause,
-                    onNext = onNext,
-                    onPrevious = onPrevious,
-                    onPlayModeChange = onPlayModeChange,
-                    onPlaylistToggle = onPlaylistToggle,
-                    scale = scale
-                )
-            }
-        }
-    }
+        },
+        onDismiss = onDismiss,
+        onCreatePlaylist = onCreatePlaylist,
+        onDeletePlaylist = onDeletePlaylist,
+        onAddToPlaylist = onAddToPlaylist,
+        onAddSongsToPlaylist = onAddSongsToPlaylist,
+        onAddSongsToQueue = onAddSongsToQueue,
+        onPlayPlaylistSongs = onPlayPlaylistSongs,
+        onDeleteSongsFromPlaylist = onDeleteSongsFromPlaylist,
+        onRemoveSongFromPlaylist = onRemoveSongFromPlaylist,
+        onDeleteSongsFromLibrary = onDeleteSongsFromLibrary,
+        onClearPlaylist = onClearPlaylist,
+        onSearchQueryChange = onSearchQueryChange,
+        searchQuery = searchQuery,
+        sortType = sortType,
+        onSortTypeChange = onSortTypeChange,
+        artists = artists,
+        albums = albums,
+        onArtistClick = onArtistClick,
+        onAlbumClick = onAlbumClick,
+        selectedArtist = selectedArtist,
+        selectedAlbum = selectedAlbum,
+        onBackFromArtist = onBackFromArtist,
+        onBackFromAlbum = onBackFromAlbum,
+        onPlaylistClick = onPlaylistClick,
+        onRenamePlaylist = onRenamePlaylist,
+        selectedPlaylistName = selectedPlaylistName,
+        onBackFromPlaylist = onBackFromPlaylist,
+        getPlaylistSongs = getPlaylistSongs,
+        onSetMusicDirectory = onSetMusicDirectory,
+        onPlaySongFromLibrary = onPlaySongFromLibrary,
+        onPlayAllSongs = onPlayAllSongs
+    )
 }
 
 @Composable
