@@ -1,6 +1,7 @@
 package com.byd.mediaplayer.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,75 +21,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.Dp
 import com.byd.mediaplayer.model.Lyrics
 import com.byd.mediaplayer.model.PlayMode
 import com.byd.mediaplayer.model.Song
 import kotlinx.coroutines.delay
 
-/**
- * 中心视图类型枚举
- * 用于切换黑胶唱片和歌词显示
- */
 enum class CenterView {
-    VINYL,  // 黑胶唱片视图
-    LYRIC   // 歌词视图
+    VINYL,
+    LYRIC
 }
 
-/**
- * 播放器主界面
- * 包含歌曲信息显示、中心视图（唱片/歌词）、进度条、播放控制按钮
- *
- * @param currentSong 当前播放的歌曲
- * @param isPlaying 是否正在播放
- * @param playlist 当前播放列表
- * @param librarySongs 歌曲库列表
- * @param currentPosition 当前播放位置（毫秒）
- * @param duration 当前歌曲总时长（毫秒）
- * @param playMode 当前播放模式
- * @param lyrics 当前歌曲的歌词
- * @param showPlaylistPanel 是否显示播放列表面板
- * @param playlistTab 当前播放列表标签页
- * @param onPlayPause 播放/暂停回调
- * @param onNext 下一曲回调
- * @param onPrevious 上一曲回调
- * @param onSeek 跳转播放位置回调（参数：目标位置毫秒）
- * @param onSongClick 歌曲点击回调（参数：歌曲索引）
- * @param onPlayModeChange 播放模式切换回调
- * @param onCenterViewToggle 中心视图切换回调
- * @param onPlaylistToggle 播放列表面板显示/隐藏回调
- * @param onPlaylistTabChange 列表标签页切换回调
- * @param onPlaylistDismiss 列表面板关闭回调
- * @param onCreatePlaylist 创建歌单回调
- * @param onDeletePlaylist 删除歌单回调
- * @param onAddToPlaylist 添加歌曲到歌单回调
- * @param onAddSongsToPlaylist 批量添加歌曲到歌单回调
- * @param onAddSongsToQueue 添加歌曲到播放队列回调
- * @param onDeleteSongsFromPlaylist 从播放列表删除歌曲回调
- * @param onRemoveSongFromPlaylist 从歌单移除歌曲回调
- * @param onDeleteSongsFromLibrary 从歌曲库删除回调
- * @param onClearPlaylist 清空播放列表回调
- * @param onSearchQueryChange 搜索关键词变化回调
- * @param searchQuery 当前搜索关键词
- * @param sortType 歌曲库排序类型
- * @param onSortTypeChange 排序类型切换回调
- * @param artists 艺术家列表
- * @param albums 专辑列表
- * @param onArtistClick 艺术家点击回调
- * @param onAlbumClick 专辑点击回调
- * @param selectedArtist 当前选中的艺术家
- * @param selectedAlbum 当前选中的专辑
- * @param onBackFromArtist 从艺术家详情返回回调
- * @param onBackFromAlbum 从专辑详情返回回调
- * @param onPlaylistClick 歌单点击回调
- * @param onRenamePlaylist 重命名歌单回调
- * @param selectedPlaylistName 当前选中的歌单名称
- * @param onBackFromPlaylist 从歌单详情返回回调
- * @param getPlaylistSongs 获取歌单歌曲列表的回调
- * @param onSetMusicDirectory 设置音乐目录回调
- * @param playlists 歌单列表
- * @param modifier 修饰符
- */
 @Composable
 fun PlayerScreen(
     currentSong: Song?,
@@ -144,156 +86,318 @@ fun PlayerScreen(
     playlists: List<Pair<String, Int>> = emptyList(),
     modifier: Modifier = Modifier
 ) {
-    // 当前中心视图状态（唱片或歌词）
     var centerView by remember { mutableStateOf(CenterView.VINYL) }
+    var controlsVisible by remember { mutableStateOf(true) }
+    var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+
+    // 30秒无操作自动隐藏进度条和控制区
+    LaunchedEffect(isPlaying, controlsVisible) {
+        if (!isPlaying) {
+            controlsVisible = true
+            return@LaunchedEffect
+        }
+        while (isPlaying && controlsVisible) {
+            delay(1000)
+            if (System.currentTimeMillis() - lastInteractionTime >= 30_000) {
+                controlsVisible = false
+            }
+        }
+    }
+
+    // 点击屏幕恢复控制区
+    fun onScreenTap() {
+        lastInteractionTime = System.currentTimeMillis()
+        if (!controlsVisible) controlsVisible = true
+    }
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF1A1A2E))  // 深色背景
+            .background(Color(0xFF1A1A2E))
     ) {
-        // 基于屏幕高度计算缩放因子（700dp为设计基准）
         val baseHeight = 700.dp
         val scale = (maxHeight / baseHeight).coerceIn(0.5f, 2.0f)
-        val gap = (12 * scale).dp
-        val titleHeight = (50 * scale).dp
-        val outerPad = (10 * scale).dp
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(outerPad),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // 歌曲信息显示区域（标题过长时自动滚动）
-            val songTitle = currentSong?.title ?: "未选择歌曲"
-            val songArtist = currentSong?.artist ?: "比亚迪音乐播放器"
-            val songInfo = "$songTitle - $songArtist"
-            Box(modifier = Modifier.height(titleHeight)) {
-                AutoScrollingText(
-                    text = songInfo,
-                    modifier = Modifier.padding(vertical = (10 * scale).dp),
-                    fontSize = (20 * scale).sp
-                )
-            }
+        if (isLandscape) {
+            // ===== 横屏布局：列表区在左2/3，播放区在右1/3 =====
+            Row(modifier = Modifier.fillMaxSize()) {
+                // 左侧：列表区
+                Box(
+                    modifier = Modifier
+                        .weight(2f)
+                        .fillMaxHeight()
+                ) {
+                    PlaylistPanel(
+                        visible = true,
+                        currentPlaylist = playlist,
+                        allSongs = librarySongs,
+                        playlists = playlists,
+                        currentTab = playlistTab,
+                        currentSongIndex = playlist.indexOf(currentSong),
+                        onTabChange = onPlaylistTabChange,
+                        onSongClick = { index ->
+                            if (playlist.isNotEmpty() && index in playlist.indices) {
+                                onSongClick(index)
+                            }
+                        },
+                        onDismiss = onPlaylistDismiss,
+                        onCreatePlaylist = onCreatePlaylist,
+                        onDeletePlaylist = onDeletePlaylist,
+                        onAddToPlaylist = onAddToPlaylist,
+                        onAddSongsToPlaylist = onAddSongsToPlaylist,
+                        onAddSongsToQueue = onAddSongsToQueue,
+                        onPlayPlaylistSongs = onPlayPlaylistSongs,
+                        onDeleteSongsFromPlaylist = onDeleteSongsFromPlaylist,
+                        onRemoveSongFromPlaylist = onRemoveSongFromPlaylist,
+                        onDeleteSongsFromLibrary = onDeleteSongsFromLibrary,
+                        onClearPlaylist = onClearPlaylist,
+                        onSearchQueryChange = onSearchQueryChange,
+                        searchQuery = searchQuery,
+                        sortType = sortType,
+                        onSortTypeChange = onSortTypeChange,
+                        artists = artists,
+                        albums = albums,
+                        onArtistClick = onArtistClick,
+                        onAlbumClick = onAlbumClick,
+                        selectedArtist = selectedArtist,
+                        selectedAlbum = selectedAlbum,
+                        onBackFromArtist = onBackFromArtist,
+                        onBackFromAlbum = onBackFromAlbum,
+                        onPlaylistClick = onPlaylistClick,
+                        onRenamePlaylist = onRenamePlaylist,
+                        selectedPlaylistName = selectedPlaylistName,
+                        onBackFromPlaylist = onBackFromPlaylist,
+                        getPlaylistSongs = getPlaylistSongs,
+                        onSetMusicDirectory = onSetMusicDirectory,
+                        onPlaySongFromLibrary = onPlaySongFromLibrary,
+                        onPlayAllSongs = onPlayAllSongs
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(gap))
-
-            // 中心视图区域（唱片或歌词，可切换）
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                AnimatedContent(
-                    targetState = centerView,
-                    label = "centerView"
-                ) { view ->
-                    when (view) {
-                        CenterView.VINYL -> {
-                            VinylView(
-                                song = currentSong,
-                                isPlaying = isPlaying,
-                                scale = scale,
-                                onClick = { centerView = CenterView.LYRIC }
-                            )
-                        }
-                        CenterView.LYRIC -> {
-                            LyricView(
-                                lyrics = lyrics,
-                                currentTime = currentPosition,
-                                scale = scale,
-                                onClick = { centerView = CenterView.VINYL }
-                            )
-                        }
-                    }
+                // 右侧：播放区
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable { onScreenTap() },
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    PlayerContent(
+                        currentSong = currentSong,
+                        isPlaying = isPlaying,
+                        currentPosition = currentPosition,
+                        duration = duration,
+                        playMode = playMode,
+                        lyrics = lyrics,
+                        centerView = centerView,
+                        onCenterViewChange = { centerView = it },
+                        controlsVisible = controlsVisible,
+                        onPlayPause = onPlayPause,
+                        onNext = onNext,
+                        onPrevious = onPrevious,
+                        onSeek = onSeek,
+                        onPlayModeChange = onPlayModeChange,
+                        onPlaylistToggle = onPlaylistToggle,
+                        scale = scale
+                    )
                 }
             }
+        } else {
+            // ===== 竖屏布局：播放区在上，列表区在下2/3 =====
+            Column(modifier = Modifier.fillMaxSize()) {
+                // 上方：播放区
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .clickable { onScreenTap() },
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    PlayerContent(
+                        currentSong = currentSong,
+                        isPlaying = isPlaying,
+                        currentPosition = currentPosition,
+                        duration = duration,
+                        playMode = playMode,
+                        lyrics = lyrics,
+                        centerView = centerView,
+                        onCenterViewChange = { centerView = it },
+                        controlsVisible = controlsVisible,
+                        onPlayPause = onPlayPause,
+                        onNext = onNext,
+                        onPrevious = onPrevious,
+                        onSeek = onSeek,
+                        onPlayModeChange = onPlayModeChange,
+                        onPlaylistToggle = onPlaylistToggle,
+                        scale = scale
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(gap))
-
-            // 进度条（显示播放进度，可拖动跳转）
-            ProgressBar(
-                currentPosition = currentPosition,
-                duration = duration,
-                onSeek = onSeek,
-                scale = scale
-            )
-
-            Spacer(modifier = Modifier.height(gap))
-
-            // 播放控制按钮区域
-            PlaybackControls(
-                isPlaying = isPlaying,
-                playMode = playMode,
-                onPlayPause = onPlayPause,
-                onNext = onNext,
-                onPrevious = onPrevious,
-                onPlayModeChange = onPlayModeChange,
-                onPlaylistToggle = onPlaylistToggle,
-                scale = scale
-            )
+                // 下方：列表区（占2/3高度）
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.667f)
+                ) {
+                    PlaylistPanel(
+                        visible = true,
+                        currentPlaylist = playlist,
+                        allSongs = librarySongs,
+                        playlists = playlists,
+                        currentTab = playlistTab,
+                        currentSongIndex = playlist.indexOf(currentSong),
+                        onTabChange = onPlaylistTabChange,
+                        onSongClick = { index ->
+                            if (playlist.isNotEmpty() && index in playlist.indices) {
+                                onSongClick(index)
+                            }
+                        },
+                        onDismiss = onPlaylistDismiss,
+                        onCreatePlaylist = onCreatePlaylist,
+                        onDeletePlaylist = onDeletePlaylist,
+                        onAddToPlaylist = onAddToPlaylist,
+                        onAddSongsToPlaylist = onAddSongsToPlaylist,
+                        onAddSongsToQueue = onAddSongsToQueue,
+                        onPlayPlaylistSongs = onPlayPlaylistSongs,
+                        onDeleteSongsFromPlaylist = onDeleteSongsFromPlaylist,
+                        onRemoveSongFromPlaylist = onRemoveSongFromPlaylist,
+                        onDeleteSongsFromLibrary = onDeleteSongsFromLibrary,
+                        onClearPlaylist = onClearPlaylist,
+                        onSearchQueryChange = onSearchQueryChange,
+                        searchQuery = searchQuery,
+                        sortType = sortType,
+                        onSortTypeChange = onSortTypeChange,
+                        artists = artists,
+                        albums = albums,
+                        onArtistClick = onArtistClick,
+                        onAlbumClick = onAlbumClick,
+                        selectedArtist = selectedArtist,
+                        selectedAlbum = selectedAlbum,
+                        onBackFromArtist = onBackFromArtist,
+                        onBackFromAlbum = onBackFromAlbum,
+                        onPlaylistClick = onPlaylistClick,
+                        onRenamePlaylist = onRenamePlaylist,
+                        selectedPlaylistName = selectedPlaylistName,
+                        onBackFromPlaylist = onBackFromPlaylist,
+                        getPlaylistSongs = getPlaylistSongs,
+                        onSetMusicDirectory = onSetMusicDirectory,
+                        onPlaySongFromLibrary = onPlaySongFromLibrary,
+                        onPlayAllSongs = onPlayAllSongs
+                    )
+                }
+            }
         }
-
-        // 播放列表面板（从右侧滑入）
-        PlaylistPanel(
-            visible = showPlaylistPanel,
-            currentPlaylist = playlist,
-            allSongs = librarySongs,
-            playlists = playlists,
-            currentTab = playlistTab,
-            currentSongIndex = playlist.indexOf(currentSong),
-            onTabChange = onPlaylistTabChange,
-            onSongClick = { index ->
-                if (playlist.isNotEmpty() && index in playlist.indices) {
-                    onSongClick(index)
-                    onPlaylistDismiss()
-                }
-            },
-            onDismiss = onPlaylistDismiss,
-            onCreatePlaylist = onCreatePlaylist,
-            onDeletePlaylist = onDeletePlaylist,
-            onAddToPlaylist = onAddToPlaylist,
-            onAddSongsToPlaylist = onAddSongsToPlaylist,
-            onAddSongsToQueue = onAddSongsToQueue,
-            onPlayPlaylistSongs = onPlayPlaylistSongs,
-            onDeleteSongsFromPlaylist = onDeleteSongsFromPlaylist,
-            onRemoveSongFromPlaylist = onRemoveSongFromPlaylist,
-            onDeleteSongsFromLibrary = onDeleteSongsFromLibrary,
-            onClearPlaylist = onClearPlaylist,
-            onSearchQueryChange = onSearchQueryChange,
-            searchQuery = searchQuery,
-            sortType = sortType,
-            onSortTypeChange = onSortTypeChange,
-            artists = artists,
-            albums = albums,
-            onArtistClick = onArtistClick,
-            onAlbumClick = onAlbumClick,
-            selectedArtist = selectedArtist,
-            selectedAlbum = selectedAlbum,
-            onBackFromArtist = onBackFromArtist,
-            onBackFromAlbum = onBackFromAlbum,
-            onPlaylistClick = onPlaylistClick,
-            onRenamePlaylist = onRenamePlaylist,
-            selectedPlaylistName = selectedPlaylistName,
-            onBackFromPlaylist = onBackFromPlaylist,
-            getPlaylistSongs = getPlaylistSongs,
-            onSetMusicDirectory = onSetMusicDirectory,
-            onPlaySongFromLibrary = onPlaySongFromLibrary,
-            onPlayAllSongs = onPlayAllSongs
-        )
     }
 }
 
-/**
- * 进度条组件
- * 显示当前播放进度，支持拖动跳转
- *
- * @param currentPosition 当前播放位置（毫秒）
- * @param duration 总时长（毫秒）
- * @param onSeek 跳转回调（参数：目标位置毫秒）
- */
+@Composable
+private fun PlayerContent(
+    currentSong: Song?,
+    isPlaying: Boolean,
+    currentPosition: Long,
+    duration: Long,
+    playMode: PlayMode,
+    lyrics: Lyrics?,
+    centerView: CenterView,
+    onCenterViewChange: (CenterView) -> Unit,
+    controlsVisible: Boolean,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+    onSeek: (Long) -> Unit,
+    onPlayModeChange: () -> Unit,
+    onPlaylistToggle: () -> Unit,
+    scale: Float
+) {
+    val s = scale.coerceIn(0.5f, 2.0f)
+    val gap = (12 * scale).dp
+    val titleHeight = (50 * scale).dp
+    val outerPad = (10 * scale).dp
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(outerPad),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // 歌曲信息
+        val songTitle = currentSong?.title ?: "未选择歌曲"
+        val songArtist = currentSong?.artist ?: "比亚迪音乐播放器"
+        val songInfo = "$songTitle - $songArtist"
+        Box(modifier = Modifier.height(titleHeight)) {
+            AutoScrollingText(
+                text = songInfo,
+                modifier = Modifier.padding(vertical = (10 * scale).dp),
+                fontSize = (20 * scale).sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(gap))
+
+        // 中心视图
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            AnimatedContent(
+                targetState = centerView,
+                label = "centerView"
+            ) { view ->
+                when (view) {
+                    CenterView.VINYL -> {
+                        VinylView(
+                            song = currentSong,
+                            isPlaying = isPlaying,
+                            scale = scale,
+                            onClick = { onCenterViewChange(CenterView.LYRIC) }
+                        )
+                    }
+                    CenterView.LYRIC -> {
+                        LyricView(
+                            lyrics = lyrics,
+                            currentTime = currentPosition,
+                            scale = scale,
+                            onClick = { onCenterViewChange(CenterView.VINYL) }
+                        )
+                    }
+                }
+            }
+        }
+
+        // 进度条和控制区（可自动隐藏）
+        AnimatedVisibility(visible = controlsVisible) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Spacer(modifier = Modifier.height(gap))
+
+                ProgressBar(
+                    currentPosition = currentPosition,
+                    duration = duration,
+                    onSeek = onSeek,
+                    scale = scale
+                )
+
+                Spacer(modifier = Modifier.height(gap))
+
+                PlaybackControls(
+                    isPlaying = isPlaying,
+                    playMode = playMode,
+                    onPlayPause = onPlayPause,
+                    onNext = onNext,
+                    onPrevious = onPrevious,
+                    onPlayModeChange = onPlayModeChange,
+                    onPlaylistToggle = onPlaylistToggle,
+                    scale = scale
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun ProgressBar(
     currentPosition: Long,
@@ -329,18 +433,6 @@ private fun ProgressBar(
     }
 }
 
-/**
- * 播放控制按钮组件
- * 根据屏幕方向自适应布局（横屏一行，竖屏两行）
- *
- * @param isPlaying 是否正在播放
- * @param playMode 当前播放模式
- * @param onPlayPause 播放/暂停回调
- * @param onNext 下一曲回调
- * @param onPrevious 上一曲回调
- * @param onPlayModeChange 播放模式切换回调
- * @param onPlaylistToggle 播放列表显示/隐藏回调
- */
 @Composable
 private fun PlaybackControls(
     isPlaying: Boolean,
@@ -436,13 +528,6 @@ private fun PlaybackControls(
     }
 }
 
-/**
- * 格式化时间显示
- * 将毫秒转换为 mm:ss 格式
- *
- * @param time 时间（毫秒）
- * @return 格式化后的字符串
- */
 private fun formatTime(time: Long): String {
     if (time <= 0) return "00:00"
     val seconds = (time / 1000) % 60
@@ -450,15 +535,6 @@ private fun formatTime(time: Long): String {
     return "%02d:%02d".format(minutes, seconds)
 }
 
-/**
- * 自动滚动文字组件
- * 当文字宽度超过容器宽度时，自动向左滚动显示
- *
- * @param text 要显示的文字
- * @param modifier 修饰符
- * @param scrollDelayMs 滚动前等待时间（毫秒）
- * @param scrollSpeed 滚动速度（像素/50毫秒）
- */
 @Composable
 private fun AutoScrollingText(
     text: String,
@@ -473,7 +549,6 @@ private fun AutoScrollingText(
     var offsetX by remember { mutableFloatStateOf(0f) }
     var shouldScroll by remember { mutableStateOf(false) }
 
-    // 检测是否需要滚动
     LaunchedEffect(text, containerWidth, textWidth) {
         shouldScroll = textWidth > containerWidth
         if (!shouldScroll) {
@@ -482,7 +557,6 @@ private fun AutoScrollingText(
         }
     }
 
-    // 滚动动画
     LaunchedEffect(shouldScroll, isScrolling) {
         if (!shouldScroll || !isScrolling) return@LaunchedEffect
         while (isScrolling) {
@@ -490,7 +564,6 @@ private fun AutoScrollingText(
             offsetX -= scrollSpeed / 50f
             val minOffset = -(textWidth - containerWidth)
             if (offsetX <= minOffset) {
-                // 滚动到末尾，等待后重置到开头
                 delay(scrollDelayMs)
                 offsetX = containerWidth
             }
@@ -499,9 +572,8 @@ private fun AutoScrollingText(
 
     Box(
         modifier = modifier
-            .fillMaxWidth(0.667f)  // 最多占容器2/3宽度
+            .fillMaxWidth(0.667f)
             .layout { measurable, constraints ->
-                // 自定义布局，测量文字宽度
                 val placeable = measurable.measure(constraints)
                 containerWidth = constraints.maxWidth.toFloat()
                 textWidth = placeable.width.toFloat()
@@ -520,7 +592,6 @@ private fun AutoScrollingText(
         )
     }
 
-    // 检测是否需要开始滚动
     LaunchedEffect(Unit) {
         delay(100)
         if (textWidth > containerWidth && !isScrolling) {
