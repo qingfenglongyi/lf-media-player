@@ -18,7 +18,7 @@ class PreferencesManager(context: Context) {
 
     /** 外部存储备份文件 */
     private val backupFile: File = File(
-        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+        Environment.getExternalStorageDirectory(),
         "lf_media_player/prefs_backup.json"
     )
 

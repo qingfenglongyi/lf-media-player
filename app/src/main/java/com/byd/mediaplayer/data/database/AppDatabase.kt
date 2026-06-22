@@ -49,17 +49,16 @@ abstract class AppDatabase : RoomDatabase() {
         /** 解析数据库路径：优先外部存储，失败则回退内部存储 */
         private fun resolveDbPath(context: Context): String {
             val dbDir = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+                Environment.getExternalStorageDirectory(),
                 "lf_media_player"
             )
-            if (dbDir.mkdirs() || dbDir.exists()) {
+            if ((dbDir.exists() || dbDir.mkdirs()) && dbDir.canWrite()) {
                 val externalPath = File(dbDir, DB_NAME).absolutePath
                 migrateInternalDbIfNeeded(context, externalPath)
                 Logger.i(TAG, "使用外部存储数据库: $externalPath")
                 return externalPath
             }
-            // 外部存储不可用，回退到内部默认路径
-            Logger.w(TAG, "外部存储目录不可用，回退到内部存储")
+            Logger.w(TAG, "外部存储不可用，回退到内部存储")
             return DB_NAME
         }
 

@@ -40,11 +40,15 @@ object Logger {
      */
     fun init(context: Context, enabled: Boolean = false) {
         isEnabled = enabled
-        // 使用 /sdcard/documents/logs 目录
-        val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-        logDir = File(documentsDir, "logs")
-        if (!logDir!!.exists()) {
-            logDir!!.mkdirs()
+        // 优先使用外部存储 /sdcard/lf_media_player/logs
+        val externalDir = File(Environment.getExternalStorageDirectory(), "lf_media_player/logs")
+        if ((externalDir.exists() || externalDir.mkdirs()) && externalDir.canWrite()) {
+            logDir = externalDir
+        } else {
+            // 外部存储不可用时回退到内部缓存
+            val fallbackDir = File(context.cacheDir, "logs")
+            if (!fallbackDir.exists()) fallbackDir.mkdirs()
+            logDir = fallbackDir
         }
         if (isEnabled) {
             log("INFO", "Logger", "日志目录: ${logDir?.absolutePath}")

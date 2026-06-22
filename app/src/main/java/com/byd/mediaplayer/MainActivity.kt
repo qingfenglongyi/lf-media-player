@@ -315,7 +315,12 @@ class MainActivity : ComponentActivity() {
                         playlist = restoredPlaylist
                         playMode = PlayMode.valueOf(restoredMode)
                         manager.setPlaylist(restoredPlaylist, restoredIndex)
-                        Logger.i(TAG, "恢复播放列表: ${restoredPlaylist.size}首, index=$restoredIndex, mode=$restoredMode")
+                        // 恢复上次播放位置
+                        val savedPosition = preferencesManager.lastPlayedPosition
+                        if (savedPosition > 0) {
+                            manager.seekTo(savedPosition)
+                        }
+                        Logger.i(TAG, "恢复播放列表: ${restoredPlaylist.size}首, index=$restoredIndex, mode=$restoredMode, position=$savedPosition")
                     } else {
                         // 首次启动或无保存数据，标记并等待用户主动播放
                         preferencesManager.isFirstLaunch = false
