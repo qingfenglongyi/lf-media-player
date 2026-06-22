@@ -24,7 +24,6 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.media.AudioManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -57,8 +56,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -92,28 +89,6 @@ class MainActivity : ComponentActivity() {
         val allGranted = permissions.entries.all { it.value }
         if (allGranted) {
             loadSongsAndStartPlay()
-        }
-    }
-
-    // 目录选择器结果Flow
-    private val _directoryPickerResult = kotlinx.coroutines.flow.MutableSharedFlow<Uri?>()
-    private val directoryPickerResult = _directoryPickerResult.asSharedFlow()
-
-    private val directoryPickerLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        result.data?.data?.let { uri ->
-            // 持久化权限
-            try {
-                contentResolver.takePersistableUriPermission(
-                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (e: Exception) {
-                Logger.e(TAG, "持久化目录权限失败: ${e.message}")
-            }
-            // 通过Flow通知composable
-            activityScope.launch {
-                _directoryPickerResult.emit(uri)
-            }
         }
     }
 
@@ -241,32 +216,31 @@ class MainActivity : ComponentActivity() {
         var libraryViewState by remember { mutableStateOf(LibraryViewState.SONGS) }
         var selectedPlaylistName by remember { mutableStateOf<String?>(null) }
         var selectedPlaylistSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
-        var musicDirectoryUri by remember { mutableStateOf<Uri?>(null) }
+        var musicDirectoryPath by remember { mutableStateOf<String?>(null) }
+        var showDirectoryPicker by remember { mutableStateOf(false) }
 
-        // 监听目录选择结果
-        LaunchedEffect(directoryPickerResult) {
-            directoryPickerResult.collect { uri: Uri? ->
-                uri?.let { selectedUri ->
-                    Logger.d(TAG, "收到目录选择结果: $selectedUri")
-                    preferencesManager.musicDirectoryUri = selectedUri.toString()
-                    musicDirectoryUri = selectedUri
-                    // 重新加载歌曲
-                    val repository = MusicRepository.getInstance(this@MainActivity)
-                    val newSongs = MediaStoreHelper.querySongsFromDirectory(this@MainActivity, selectedUri)
+        // 文件浏览器选择目录后的处理
+        fun onDirectorySelected(path: String) {
+            Logger.d(TAG, "选择音乐目录: $path")
+            preferencesManager.musicDirectoryPath = path
+            musicDirectoryPath = path
+            showDirectoryPicker = false
+            activityScope.launch(Dispatchers.IO) {
+                val newSongs = MediaStoreHelper.querySongsFromPath(this@MainActivity, path)
+                withContext(Dispatchers.Main) {
                     librarySongs = newSongs
                     libraryDisplaySongs = newSongs
-                    Logger.i(TAG, "歌曲重新加载完成，共 ${newSongs.size} 首")
                 }
+                Logger.i(TAG, "歌曲重新加载完成，共 ${newSongs.size} 首")
             }
         }
 
-        fun openDirectoryPicker() {
-            Logger.d(TAG, "打开目录选择器")
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-            }
-            directoryPickerLauncher.launch(intent)
+        if (showDirectoryPicker) {
+            com.byd.mediaplayer.ui.DirectoryPickerDialog(
+                initialPath = musicDirectoryPath ?: "/sdcard",
+                onDismiss = { showDirectoryPicker = false },
+                onDirectorySelected = { onDirectorySelected(it) }
+            )
         }
 
         // // Logger.d(TAG, "PlayerScreenWithState - 初始化完成，开始LaunchedEffect")
@@ -280,12 +254,8 @@ class MainActivity : ComponentActivity() {
             val repository = MusicRepository.getInstance(this@MainActivity)
 
             // 加载保存的音乐目录设置
-            preferencesManager.musicDirectoryUri?.let { uriString ->
-                try {
-                    musicDirectoryUri = Uri.parse(uriString)
-                } catch (e: Exception) {
-                    Logger.e(TAG, "解析音乐目录URI失败: ${e.message}")
-                }
+            preferencesManager.musicDirectoryPath?.let { path ->
+                musicDirectoryPath = path
             }
 
             // 将 I/O 操作移到 IO 线程，避免阻塞主线程导致启动卡顿
@@ -297,15 +267,18 @@ class MainActivity : ComponentActivity() {
 
                 // 加载歌曲到歌曲库（只有设置了音乐目录才自动加载）
                 var allSongs: List<Song> = emptyList()
-                if (musicDirectoryUri != null && librarySongs.isEmpty()) {
-                    allSongs = MediaStoreHelper.querySongsFromDirectory(this@MainActivity, musicDirectoryUri!!)
+                val dirPath = musicDirectoryPath
+                    ?: if (java.io.File("/sdcard/Music").exists()) "/sdcard/Music" else null
+                if (dirPath != null && librarySongs.isEmpty()) {
+                    musicDirectoryPath = dirPath
+                    allSongs = MediaStoreHelper.querySongsFromPath(this@MainActivity, dirPath)
                     Logger.i(TAG, "从目录加载歌曲完成: ${allSongs.size}首")
                 }
 
                 // 加载艺术家和专辑列表（仅在有歌曲时）
                 var loadedArtists: List<String> = emptyList()
                 var loadedAlbums: List<String> = emptyList()
-                if (musicDirectoryUri != null) {
+                if (dirPath != null) {
                     loadedArtists = MediaStoreHelper.getAllArtists(this@MainActivity)
                     loadedAlbums = MediaStoreHelper.getAllAlbums(this@MainActivity)
                 }
@@ -326,10 +299,10 @@ class MainActivity : ComponentActivity() {
                 // 切回主线程更新 UI 状态
                 withContext(Dispatchers.Main) {
                     playlists = playlistData
-                    if (musicDirectoryUri != null && librarySongs.isEmpty()) {
+                    if (dirPath != null && librarySongs.isEmpty()) {
                         librarySongs = allSongs
                         libraryDisplaySongs = allSongs
-                    } else if (musicDirectoryUri == null) {
+                    } else if (dirPath == null) {
                         librarySongs = emptyList()
                         libraryDisplaySongs = emptyList()
                         Logger.i(TAG, "未设置音乐目录，等待用户设置")
@@ -440,7 +413,7 @@ class MainActivity : ComponentActivity() {
         LaunchedEffect(currentSong) {
             currentSong?.let { song ->
                 Logger.i(TAG, "歌曲变化: ${song.title}, 路径: ${song.path}")
-                lyrics = LrcParser.parseLrc(this@MainActivity, song.path, musicDirectoryUri)
+                lyrics = LrcParser.parseLrc(this@MainActivity, song.path, musicDirectoryPath)
             }
         }
 
@@ -615,9 +588,9 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     withContext(Dispatchers.Main) {
-                        val musicDirUri = preferencesManager.musicDirectoryUri
-                        val newLibrary = if (musicDirUri != null) {
-                            MediaStoreHelper.querySongsFromDirectory(this@MainActivity, Uri.parse(musicDirUri))
+                        val musicDirPath = preferencesManager.musicDirectoryPath
+                        val newLibrary = if (musicDirPath != null) {
+                            MediaStoreHelper.querySongsFromPath(this@MainActivity, musicDirPath)
                         } else {
                             emptyList()
                         }
@@ -722,7 +695,7 @@ class MainActivity : ComponentActivity() {
             },
             getPlaylistSongs = { name -> playlistSongCache[name] ?: emptyList() },
             onSetMusicDirectory = {
-                openDirectoryPicker()
+                showDirectoryPicker = true
             },
             onPlaySongFromLibrary = { song ->
                 playerService?.getPlayerManager()?.let { manager ->

@@ -9,6 +9,7 @@ import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
 import com.byd.mediaplayer.model.Song
 import com.byd.mediaplayer.util.Logger
+import java.io.File
 
 /**
  * MediaStore帮助类
@@ -85,6 +86,77 @@ object MediaStoreHelper {
         }
 
         return songs
+    }
+
+    /**
+     * 从指定文件路径扫描歌曲（直接文件系统访问，替代SAF）
+     *
+     * @param context Android上下文
+     * @param directoryPath 目录绝对路径
+     * @return 歌曲列表
+     */
+    fun querySongsFromPath(context: Context, directoryPath: String): List<Song> {
+        Logger.d(TAG, "从路径扫描歌曲: $directoryPath")
+        val songs = mutableListOf<Song>()
+        val dir = File(directoryPath)
+        if (!dir.exists() || !dir.isDirectory) {
+            Logger.w(TAG, "目录不存在或不是目录: $directoryPath")
+            return songs
+        }
+        scanDirectoryForAudioFilesByPath(context, dir, songs)
+        Logger.i(TAG, "从路径共扫描 ${songs.size} 首歌曲")
+        return songs
+    }
+
+    /**
+     * 递归扫描目录查找音频文件（File方式）
+     */
+    private fun scanDirectoryForAudioFilesByPath(context: Context, dir: File, songs: MutableList<Song>) {
+        val files = dir.listFiles() ?: return
+        for (file in files) {
+            if (file.isDirectory && !file.isHidden) {
+                scanDirectoryForAudioFilesByPath(context, file, songs)
+            } else if (file.isFile && !file.isHidden) {
+                val name = file.name
+                if (name.endsWith(".mp3", true) ||
+                    name.endsWith(".flac", true) ||
+                    name.endsWith(".m4a", true) ||
+                    name.endsWith(".wav", true) ||
+                    name.endsWith(".ogg", true) ||
+                    name.endsWith(".aac", true)) {
+
+                    val title = name.substringBeforeLast(".")
+                    var artist = "未知艺术家"
+                    var album = "未知专辑"
+                    var duration = 0L
+
+                    try {
+                        val retriever = MediaMetadataRetriever()
+                        retriever.setDataSource(file.absolutePath)
+                        artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST) ?: "未知艺术家"
+                        album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM) ?: "未知专辑"
+                        val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                        duration = durationStr?.toLongOrNull() ?: 0L
+                        retriever.release()
+                    } catch (e: Exception) {
+                        Logger.w(TAG, "无法获取元数据: $name, ${e.message}")
+                    }
+
+                    songs.add(
+                        Song(
+                            id = file.absolutePath.hashCode().toLong(),
+                            title = title,
+                            artist = artist,
+                            album = album,
+                            duration = duration,
+                            uri = Uri.fromFile(file),
+                            path = file.absolutePath
+                        )
+                    )
+                    Logger.v(TAG, "扫描到: $name, 艺术家: $artist")
+                }
+            }
+        }
     }
 
     /**

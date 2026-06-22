@@ -36,14 +36,14 @@ object LrcParser {
      * @param musicDirectoryUri 可选的目录URI，用于限制歌词搜索范围（使用SAF）
      * @return 解析后的Lyrics对象，如果未找到返回null
      */
-    fun parseLrc(context: Context, musicPath: String, musicDirectoryUri: Uri? = null): Lyrics? {
-        Logger.i(TAG, "开始解析歌词，音乐路径: $musicPath, 目录限制: $musicDirectoryUri")
+    fun parseLrc(context: Context, musicPath: String, musicDirectoryPath: String? = null): Lyrics? {
+        Logger.i(TAG, "开始解析歌词，音乐路径: $musicPath, 目录限制: $musicDirectoryPath")
 
-        // 如果有目录限制，使用SAF方式搜索
-        if (musicDirectoryUri != null) {
-            val lyrics = trySearchLrcInSafDirectory(context, musicPath, musicDirectoryUri)
+        // 如果有目录限制，在指定目录中递归搜索歌词
+        if (musicDirectoryPath != null) {
+            val lyrics = trySearchLrcInDirectory(musicPath, musicDirectoryPath)
             if (lyrics != null) {
-                Logger.i(TAG, "通过SAF目录搜索找到歌词")
+                Logger.i(TAG, "通过目录搜索找到歌词")
                 return lyrics
             }
             return null
@@ -75,6 +75,42 @@ object LrcParser {
         }
 
         Logger.w(TAG, "未找到歌词文件: $lrcPath")
+        return null
+    }
+
+    /**
+     * 在指定文件目录中递归搜索歌词文件
+     */
+    private fun trySearchLrcInDirectory(musicPath: String, directoryPath: String): Lyrics? {
+        return try {
+            val dir = File(directoryPath)
+            if (!dir.exists() || !dir.isDirectory) return null
+
+            val musicFileName = File(musicPath).nameWithoutExtension
+            Logger.d(TAG, "目录搜索歌词，文件名: $musicFileName, 目录: $directoryPath")
+
+            searchLrcFileInFileTree(dir, musicFileName)
+        } catch (e: Exception) {
+            Logger.e(TAG, "目录搜索歌词异常: ${e.message}", e)
+            null
+        }
+    }
+
+    private fun searchLrcFileInFileTree(dir: File, musicFileName: String): Lyrics? {
+        val files = dir.listFiles() ?: return null
+        for (file in files) {
+            if (file.isDirectory && !file.isHidden) {
+                val result = searchLrcFileInFileTree(file, musicFileName)
+                if (result != null) return result
+            } else if (file.isFile && !file.isHidden) {
+                val name = file.name
+                if (name.startsWith(musicFileName, ignoreCase = true) &&
+                    name.endsWith(".lrc", ignoreCase = true)) {
+                    Logger.d(TAG, "找到歌词文件: ${file.absolutePath}")
+                    return parseFile(file)
+                }
+            }
+        }
         return null
     }
 

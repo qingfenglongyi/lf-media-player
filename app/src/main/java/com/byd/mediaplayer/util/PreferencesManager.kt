@@ -46,6 +46,10 @@ class PreferencesManager(context: Context) {
         get() = prefs.getString(KEY_MUSIC_DIRECTORY_URI, null)
         set(value) = prefs.edit { putString(KEY_MUSIC_DIRECTORY_URI, value) }
 
+    var musicDirectoryPath: String?
+        get() = prefs.getString(KEY_MUSIC_DIRECTORY_PATH, null)
+        set(value) = prefs.edit { putString(KEY_MUSIC_DIRECTORY_PATH, value) }
+
     var isFirstLaunch: Boolean
         get() = prefs.getBoolean(KEY_FIRST_LAUNCH, true)
         set(value) = prefs.edit { putBoolean(KEY_FIRST_LAUNCH, value) }
@@ -70,6 +74,7 @@ class PreferencesManager(context: Context) {
                 put(KEY_VOLUME, lastVolume.toDouble())
                 put(KEY_PLAYLIST_PATH, lastPlaylistPath ?: "")
                 put(KEY_MUSIC_DIRECTORY_URI, musicDirectoryUri ?: "")
+                put(KEY_MUSIC_DIRECTORY_PATH, musicDirectoryPath ?: "")
                 put(KEY_FIRST_LAUNCH, isFirstLaunch)
             }
             backupFile.writeText(json.toString())
@@ -94,6 +99,7 @@ class PreferencesManager(context: Context) {
                     putFloat(KEY_VOLUME, json.optDouble(KEY_VOLUME, 1.0).toFloat())
                     putString(KEY_PLAYLIST_PATH, json.optString(KEY_PLAYLIST_PATH).ifEmpty { null })
                     putString(KEY_MUSIC_DIRECTORY_URI, json.optString(KEY_MUSIC_DIRECTORY_URI).ifEmpty { null })
+                    putString(KEY_MUSIC_DIRECTORY_PATH, json.optString(KEY_MUSIC_DIRECTORY_PATH).ifEmpty { null })
                     putBoolean(KEY_FIRST_LAUNCH, json.optBoolean(KEY_FIRST_LAUNCH, true))
                 }
                 Logger.i(TAG, "从外部存储恢复了偏好设置")
@@ -113,6 +119,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_VOLUME = "volume"
         private const val KEY_PLAYLIST_PATH = "last_playlist_path"
         private const val KEY_MUSIC_DIRECTORY_URI = "music_directory_uri"
+        private const val KEY_MUSIC_DIRECTORY_PATH = "music_directory_path"
         private const val KEY_FIRST_LAUNCH = "first_launch"
     }
 }
