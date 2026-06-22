@@ -95,7 +95,7 @@ fun DirectoryPickerDialog(
                     Text("上一级", fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
-                HorizontalDivider()
+                Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 // 子目录列表
                 LazyColumn(
