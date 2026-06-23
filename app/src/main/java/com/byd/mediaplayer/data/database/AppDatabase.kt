@@ -95,12 +95,12 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         /** 首次使用外部路径时，从内部存储复制旧数据库 */
-        private fun migrateInternalDbIfNeeded(context: Context, externalDbPath: String) {
+        private fun migrateInternalDbIfNeeded(context: Context, externalDbPath: String): Boolean {
             val externalDbFile = File(externalDbPath)
-            if (externalDbFile.exists()) return
+            if (externalDbFile.exists()) return false
 
             val internalDbFile = context.getDatabasePath(DB_NAME)
-            if (!internalDbFile.exists()) return
+            if (!internalDbFile.exists()) return false
 
             try {
                 val internalDir = File(internalDbFile.parent!!)
@@ -112,8 +112,10 @@ abstract class AppDatabase : RoomDatabase() {
                     }
                 }
                 Logger.i(TAG, "数据库从内部存储迁移到外部存储成功")
+                return true
             } catch (e: Exception) {
                 Logger.e(TAG, "数据库迁移失败: ${e.message}")
+                return false
             }
         }
     }
