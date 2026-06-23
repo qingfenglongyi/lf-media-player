@@ -54,12 +54,44 @@ abstract class AppDatabase : RoomDatabase() {
             )
             if ((dbDir.exists() || dbDir.mkdirs()) && dbDir.canWrite()) {
                 val externalPath = File(dbDir, DB_NAME).absolutePath
-                migrateInternalDbIfNeeded(context, externalPath)
+                // 如果外部路径无数据，尝试从旧Documents路径或内部路径迁移
+                if (!File(externalPath).exists()) {
+                    val migrated = migrateFromOldPath(externalPath)
+                            || migrateInternalDbIfNeeded(context, externalPath)
+                    if (migrated) {
+                        Logger.i(TAG, "数据库迁移到外部存储成功")
+                    }
+                }
                 Logger.i(TAG, "使用外部存储数据库: $externalPath")
                 return externalPath
             }
             Logger.w(TAG, "外部存储不可用，回退到内部存储")
             return DB_NAME
+        }
+
+        /** 从旧Documents路径迁移数据库 */
+        private fun migrateFromOldPath(externalDbPath: String): Boolean {
+            val oldDir = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+                "lf_media_player"
+            )
+            val oldDbFile = File(oldDir, DB_NAME)
+            if (!oldDbFile.exists()) return false
+
+            try {
+                for (suffix in arrayOf("", "-wal", "-shm")) {
+                    val src = File(oldDir, "$DB_NAME$suffix")
+                    val dst = File("$externalDbPath$suffix")
+                    if (src.exists()) {
+                        src.copyTo(dst, overwrite = false)
+                    }
+                }
+                Logger.i(TAG, "数据库从Documents路径迁移成功")
+                return true
+            } catch (e: Exception) {
+                Logger.e(TAG, "从Documents路径迁移失败: ${e.message}")
+                return false
+            }
         }
 
         /** 首次使用外部路径时，从内部存储复制旧数据库 */

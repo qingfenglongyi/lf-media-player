@@ -116,16 +116,26 @@ fun PlayerScreen(
             .fillMaxSize()
             .background(Color(0xFF1A1A2E))
     ) {
-        val baseHeight = 700.dp
+        val baseHeight = if (isLandscape) 400.dp else 700.dp
         val scale = (maxHeight / baseHeight).coerceIn(0.5f, 2.0f)
         val gap = (12 * scale).dp
         val titleHeight = (50 * scale).dp
         val outerPad = (10 * scale).dp
 
+        // 列表面板显示时，播放区缩到1/3
+        val playerModifier = if (showPlaylistPanel) {
+            if (isLandscape) {
+                Modifier.fillMaxHeight().fillMaxWidth(1f / 3f)
+            } else {
+                Modifier.fillMaxHeight(1f / 3f).fillMaxWidth()
+            }
+        } else {
+            Modifier.fillMaxSize()
+        }
+
         // 点击屏幕恢复控制区
         Column(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = playerModifier
                 .padding(outerPad)
                 .clickable {
                     lastInteractionTime = System.currentTimeMillis()

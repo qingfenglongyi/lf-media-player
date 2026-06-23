@@ -86,9 +86,15 @@ class PreferencesManager(context: Context) {
 
     /** 从外部存储恢复偏好设置（仅在重装后内部prefs为默认值时恢复） */
     fun importFromExternalStorage() {
-        if (!backupFile.exists()) return
+        // 优先检查新路径，再检查旧路径（兼容从Documents路径迁移）
+        val filesToCheck = listOf(
+            backupFile,
+            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+                "lf_media_player/prefs_backup.json")
+        )
+        val backupToUse = filesToCheck.firstOrNull { it.exists() } ?: return
         try {
-            val json = JSONObject(backupFile.readText())
+            val json = JSONObject(backupToUse.readText())
             // 仅在重装场景（内部prefs为默认值）时恢复
             if (prefs.getLong(KEY_LAST_SONG_ID, -1L) == -1L
                 && json.optLong(KEY_LAST_SONG_ID, -1L) != -1L) {
