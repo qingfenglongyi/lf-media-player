@@ -174,7 +174,14 @@ fun PlayerScreen(
                                 song = currentSong,
                                 isPlaying = isPlaying,
                                 scale = scale,
-                                onClick = { centerView = CenterView.LYRIC }
+                                onClick = {
+                                    lastInteractionTime = System.currentTimeMillis()
+                                    if (!controlsVisible) {
+                                        controlsVisible = true
+                                    } else {
+                                        centerView = CenterView.LYRIC
+                                    }
+                                }
                             )
                         }
                         CenterView.LYRIC -> {
@@ -182,7 +189,14 @@ fun PlayerScreen(
                                 lyrics = lyrics,
                                 currentTime = currentPosition,
                                 scale = scale,
-                                onClick = { centerView = CenterView.VINYL }
+                                onClick = {
+                                    lastInteractionTime = System.currentTimeMillis()
+                                    if (!controlsVisible) {
+                                        controlsVisible = true
+                                    } else {
+                                        centerView = CenterView.VINYL
+                                    }
+                                }
                             )
                         }
                     }
