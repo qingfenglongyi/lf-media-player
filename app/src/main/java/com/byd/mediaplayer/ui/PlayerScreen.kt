@@ -2,6 +2,11 @@ package com.byd.mediaplayer.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -97,7 +102,7 @@ fun PlayerScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
 
-    // 30秒无操作自动隐藏进度条和控制区
+    // 10秒无操作自动隐藏进度条和控制区
     LaunchedEffect(isPlaying, controlsVisible) {
         if (!isPlaying) {
             controlsVisible = true
@@ -105,7 +110,7 @@ fun PlayerScreen(
         }
         while (isPlaying && controlsVisible) {
             delay(1000)
-            if (System.currentTimeMillis() - lastInteractionTime >= 30_000) {
+            if (System.currentTimeMillis() - lastInteractionTime >= 10_000) {
                 controlsVisible = false
             }
         }
@@ -204,7 +209,12 @@ fun PlayerScreen(
             }
 
             // 进度条和控制区（可自动隐藏）
-            AnimatedVisibility(visible = controlsVisible) {
+            AnimatedVisibility(
+                visible = controlsVisible,
+                modifier = Modifier.animateContentSize(),
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Spacer(modifier = Modifier.height(gap))
 
