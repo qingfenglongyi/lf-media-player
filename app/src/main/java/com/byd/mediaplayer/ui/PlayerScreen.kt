@@ -162,81 +162,91 @@ fun PlayerScreen(
 
             Spacer(modifier = Modifier.height(gap))
 
-            // 中心视图
-            Box(
+            // 内层 Column：中心视图 + 控制区共享剩余空间
+            // 这样控制区出现/消失时，外层 weight(1f) 会重新分配剩余高度，
+            // 歌词区能够同步缩放
+            Column(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .animateContentSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                AnimatedContent(
-                    targetState = centerView,
-                    label = "centerView"
-                ) { view ->
-                    when (view) {
-                        CenterView.VINYL -> {
-                            VinylView(
-                                song = currentSong,
-                                isPlaying = isPlaying,
-                                scale = scale,
-                                onClick = {
-                                    lastInteractionTime = System.currentTimeMillis()
-                                    if (!controlsVisible) {
-                                        controlsVisible = true
-                                    } else {
-                                        centerView = CenterView.LYRIC
+                // 中心视图
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AnimatedContent(
+                        targetState = centerView,
+                        label = "centerView"
+                    ) { view ->
+                        when (view) {
+                            CenterView.VINYL -> {
+                                VinylView(
+                                    song = currentSong,
+                                    isPlaying = isPlaying,
+                                    scale = scale,
+                                    onClick = {
+                                        lastInteractionTime = System.currentTimeMillis()
+                                        if (!controlsVisible) {
+                                            controlsVisible = true
+                                        } else {
+                                            centerView = CenterView.LYRIC
+                                        }
                                     }
-                                }
-                            )
-                        }
-                        CenterView.LYRIC -> {
-                            LyricView(
-                                lyrics = lyrics,
-                                currentTime = currentPosition,
-                                scale = scale,
-                                onClick = {
-                                    lastInteractionTime = System.currentTimeMillis()
-                                    if (!controlsVisible) {
-                                        controlsVisible = true
-                                    } else {
-                                        centerView = CenterView.VINYL
+                                )
+                            }
+                            CenterView.LYRIC -> {
+                                LyricView(
+                                    lyrics = lyrics,
+                                    currentTime = currentPosition,
+                                    scale = scale,
+                                    onClick = {
+                                        lastInteractionTime = System.currentTimeMillis()
+                                        if (!controlsVisible) {
+                                            controlsVisible = true
+                                        } else {
+                                            centerView = CenterView.VINYL
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            // 进度条和控制区（可自动隐藏）
-            AnimatedVisibility(
-                visible = controlsVisible,
-                modifier = Modifier.animateContentSize(),
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Spacer(modifier = Modifier.height(gap))
+                // 进度条和控制区（可自动隐藏）
+                AnimatedVisibility(
+                    visible = controlsVisible,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Spacer(modifier = Modifier.height(gap))
 
-                    ProgressBar(
-                        currentPosition = currentPosition,
-                        duration = duration,
-                        onSeek = onSeek,
-                        scale = scale
-                    )
+                        ProgressBar(
+                            currentPosition = currentPosition,
+                            duration = duration,
+                            onSeek = onSeek,
+                            scale = scale
+                        )
 
-                    Spacer(modifier = Modifier.height(gap))
+                        Spacer(modifier = Modifier.height(gap))
 
-                    PlaybackControls(
-                        isPlaying = isPlaying,
-                        playMode = playMode,
-                        onPlayPause = onPlayPause,
-                        onNext = onNext,
-                        onPrevious = onPrevious,
-                        onPlayModeChange = onPlayModeChange,
-                        onPlaylistToggle = onPlaylistToggle,
-                        scale = scale
-                    )
+                        PlaybackControls(
+                            isPlaying = isPlaying,
+                            playMode = playMode,
+                            onPlayPause = onPlayPause,
+                            onNext = onNext,
+                            onPrevious = onPrevious,
+                            onPlayModeChange = onPlayModeChange,
+                            onPlaylistToggle = onPlaylistToggle,
+                            scale = scale
+                        )
+                    }
                 }
             }
         }
