@@ -2,11 +2,6 @@ package com.byd.mediaplayer.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -23,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
@@ -30,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.Dp
 import com.byd.mediaplayer.model.Lyrics
 import com.byd.mediaplayer.model.PlayMode
 import com.byd.mediaplayer.model.Song
@@ -162,80 +159,30 @@ fun PlayerScreen(
 
             Spacer(modifier = Modifier.height(gap))
 
-            // 内层 Column：中心视图 + 控制区共享剩余空间
-            // 这样控制区出现/消失时，外层 weight(1f) 会重新分配剩余高度，
-            // 歌词区能够同步缩放
-            Column(
+            // 用 SubcomposeLayout 精确管理中心区与控制区的底部对齐：
+            // 1) 先测量控制区真实高度 H_controls
+            // 2) 中心区 maxHeight = totalH - H_controls
+            // 3) 控制区贴底放置，中心区贴顶
+            // 这样两区高度严格不重叠，控制区显示/隐藏时中心区（歌词）
+            // 高度同步增减，不会出现"挡住部分歌词"
+            SubcomposeLayout(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .animateContentSize(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // 中心视图
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AnimatedContent(
-                        targetState = centerView,
-                        label = "centerView"
-                    ) { view ->
-                        when (view) {
-                            CenterView.VINYL -> {
-                                VinylView(
-                                    song = currentSong,
-                                    isPlaying = isPlaying,
-                                    scale = scale,
-                                    onClick = {
-                                        lastInteractionTime = System.currentTimeMillis()
-                                        if (!controlsVisible) {
-                                            controlsVisible = true
-                                        } else {
-                                            centerView = CenterView.LYRIC
-                                        }
-                                    }
-                                )
-                            }
-                            CenterView.LYRIC -> {
-                                LyricView(
-                                    lyrics = lyrics,
-                                    currentTime = currentPosition,
-                                    scale = scale,
-                                    onClick = {
-                                        lastInteractionTime = System.currentTimeMillis()
-                                        if (!controlsVisible) {
-                                            controlsVisible = true
-                                        } else {
-                                            centerView = CenterView.VINYL
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
+                    .background(Color(0xFF1A1A2E))
+            ) { constraints ->
+                val totalH = constraints.maxHeight
 
-                // 进度条和控制区（可自动隐藏）
-                AnimatedVisibility(
-                    visible = controlsVisible,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
+                val controlsPlaceable = subcompose("controls") {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Spacer(modifier = Modifier.height(gap))
-
                         ProgressBar(
                             currentPosition = currentPosition,
                             duration = duration,
                             onSeek = onSeek,
                             scale = scale
                         )
-
                         Spacer(modifier = Modifier.height(gap))
-
                         PlaybackControls(
                             isPlaying = isPlaying,
                             playMode = playMode,
@@ -246,6 +193,58 @@ fun PlayerScreen(
                             onPlaylistToggle = onPlaylistToggle,
                             scale = scale
                         )
+                    }
+                }.first().measure(
+                    constraints.copy(minWidth = 0, minHeight = 0)
+                )
+
+                val targetControlsH = if (controlsVisible) controlsPlaceable.height else 0
+                val centerMaxH = (totalH - targetControlsH).coerceAtLeast(1)
+                val centerConstraints = constraints.copy(
+                    minWidth = 0,
+                    minHeight = 0,
+                    maxHeight = centerMaxH
+                )
+
+                val centerPlaceable = subcompose("center") {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AnimatedContent(
+                            targetState = centerView,
+                            label = "centerView"
+                        ) { view ->
+                            when (view) {
+                                CenterView.VINYL -> VinylView(
+                                    song = currentSong,
+                                    isPlaying = isPlaying,
+                                    scale = scale,
+                                    onClick = {
+                                        lastInteractionTime = System.currentTimeMillis()
+                                        if (!controlsVisible) controlsVisible = true
+                                        else centerView = CenterView.LYRIC
+                                    }
+                                )
+                                CenterView.LYRIC -> LyricView(
+                                    lyrics = lyrics,
+                                    currentTime = currentPosition,
+                                    scale = scale,
+                                    onClick = {
+                                        lastInteractionTime = System.currentTimeMillis()
+                                        if (!controlsVisible) controlsVisible = true
+                                        else centerView = CenterView.VINYL
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }.first().measure(centerConstraints)
+
+                layout(constraints.maxWidth, totalH) {
+                    centerPlaceable.placeRelative(0, 0)
+                    if (controlsVisible) {
+                        controlsPlaceable.placeRelative(0, totalH - controlsPlaceable.height)
                     }
                 }
             }
